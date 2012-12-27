@@ -1,0 +1,7 @@
+#!/bin/bash
+mysql -u root allbacteria < gff.sql
+mysql -u root allbacteria < accession.sql
+awk '{ if ($3=="CDS") print $1"\t"$4"\t"$5"\t"$7"\t"$9}' $1.gff | sed -e 's/ID=.*Name=//' -e 's/;Parent.*$//' > $1.txt
+cat $1.txt | mysql -u root allbacteria --local-infile=1  -e "LOAD DATA LOCAL INFILE '/dev/stdin' INTO TABLE gff;"
+awk '/^>/ {split($0,a,"|");print a[4],"\t",$1}' $1.fasta | sed 's/>//' > $1.txt2
+cat $1.txt2 | mysql -u root allbacteria --local-infile=1  -e "LOAD DATA LOCAL INFILE '/dev/stdin' INTO TABLE accession;"

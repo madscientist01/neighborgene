@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>List</title>
+        <meta charset='utf-8'>
+    </head>
+    <script type="text/javascript" charset="utf8" src="{0}"></script>
+
+        <!-- DataTables CSS -->
+        <link rel="stylesheet" type="text/css" href="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/css/jquery.dataTables.css">
+        <!-- BootStrap CSS -->
+        <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+        <!-- jQuery -->
+        <script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.8.2.min.js"></script>
+        
+        <script src="httP://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/js/bootstrap.min.js"></script>
+        <!-- DataTables -->
+        <script type="text/javascript" charset="utf8" src="http://ajax.aspnetcdn.com/ajax/jquery.dataTables/1.9.4/jquery.dataTables.min.js"></script>
+
+        <script>
+        $(document).ready(function(){       
+           
+                $('#listtable').dataTable({
+                    "sDom": "<'row'<'span8'l>r>t<'row'<'span8'i><'span8'p>>",
+                     "iDisplayLength": 50,
+                     "aoColumnDefs": [
+                     { "sWidth": "60px", "aTargets": [ 0 ] },
+                     { "sWidth": "60px", "aTargets": [ 1 ] },                
+                     ]                                    
+                    });
+                
+        });
+        </script>
+                  
+            <style>
+            table{
+                font-family: "Arial",Sans-Serif;
+                font-size: 12px;
+                margin: 40px;
+                width:1000px;
+                text-align: left;
+                border-collapse: collapse;  
+                }
+            tr.conditionalRowColor
+            {
+
+            }
+                
+             td.conditionalRowColor
+            {
+                background-color:#FFEEEE;
+            }
+
+            .scrollable {
+            height: 100%;
+            overflow: auto;
+            }
+            div.head {
+                width:800px;
+                font-family: Sans-Serif;
+                font-size: 14px;
+                border:3px solid #EEEEEE;
+                border-radius: 10px;
+                padding: 10px;
+                align :center;
+                background-color: #FFFFFF;
+                }
+           div.dataTables_length 
+           label {
+                width: 460px;
+                float: left;
+                text-align: left;
+            }
+             
+            div.dataTables_length 
+            select {
+                width: 75px;
+            }
+             
+            div.dataTables_filter 
+            label {
+                float: right;
+                width: 460px;
+            }
+             
+            div.dataTables_info {
+                padding-top: 8px;
+            }
+             
+            div.dataTables_paginate {
+                float: right;
+                margin: 0;
+            }
+             
+            table {
+                clear: both;
+            } 
+            </style>
+        <body>
+        <div class=span12>
+            <table id='listtable' class='table table-bordered'>
+            <thead>
+                <tr>
+                    {% for name in headers %}
+                    <td>{{ name }}</td>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for hit in hits %}
+                <tr>
+                    <td>
+                        <a href="#{{hit.link}}">{{hit.name}}</a>
+                    </td>
+                    <td>
+                        {{hit.resolution}}
+                    </td>
+                    <td>
+                        {{hit.description}};{{hit.description2}}
+                    </td>
+                    <td>
+                        {{hit.evalue}}
+                    </td>
+                    <td>
+                        {{hit.score}}
+                    </td>
+                    <td>
+                        {{hit.probability}}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </body>
