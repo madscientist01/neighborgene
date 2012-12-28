@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
     <head>
@@ -29,7 +28,8 @@
                      { "sWidth": "60px", "aTargets": [ 1 ] },                
                      ]                                    
                     });
-                
+                  var oTable = $('#listtable').dataTable();
+                oTable.fnSort( [ [2,'asc'], [3,'asc'] ] );
         });
         </script>
                   
@@ -92,13 +92,16 @@
                 float: right;
                 margin: 0;
             }
-             
+            
             table {
                 clear: both;
             } 
             </style>
         <body>
-        <div class=span12>
+        <div class=row>
+        <div class=span1>
+        </div>
+        <div class=span11>
             <table id='listtable' class='table table-bordered'>
             <thead>
                 <tr>
@@ -111,7 +114,7 @@
                 {% for hit in hits %}
                 <tr>
                     <td>
-                        <a href="#{{hit.link}}">{{hit.name}}</a>
+                        <a href="{{hit.labelLink}}">{{hit.name}}</a>
                     </td>
                     <td>
                         {{hit.resolution}}
@@ -128,9 +131,47 @@
                     <td>
                         {{hit.probability}}
                     </td>
+                    <td>
+                        {{hit.alignedCols}}
+                    </td>
+                    <td>
+                        {{hit.identity}}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         </div>
+        </div>
+        <div class=row>
+            
+            <div class=span11>
+            {{hitmap}}
+            </div>
+        </div>
+        <div>
+        {% for hit in hits %}
+        <div class=row>
+        <div class=span1>
+        </div>
+        <div class=span3 id="{{hit.name}}">
+            <div class="well well-small">
+                {% if hit.color == "red" %} 
+                <span class="label label-important">
+                {% else %}
+                <span class="label">
+                {% endif %}
+                    <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h4></a>
+                </span>
+                <h5>{{hit.description}}</h5>
+                <h5><em>{{hit.specie}}</em></h5>
+                E-value:{{hit.evalue}}         Score:{{hit.score}}<br>
+                Probability:{{hit.probability}}       Identity{{hit.identity}}%<br>
+            </div>
+        </div>
+        <div class=span8>
+            {{hit.svg}}
+        </div>
+    </div>
+        {% endfor %}
     </body>
