@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
+#
 #
 # HHblits wrapper
 # MadScientist http://madscientist.wordpress.com
@@ -12,10 +12,15 @@ from hhblitdrawer import HHBlitsDrawer
 from abstractsequenceobject import AbstractSequenceObject
 import subprocess
 import os
+import datetime
 import re
 import sys
 import argparse
 import jinja2
+import SimpleHTTPServer
+import SocketServer
+import webbrowser
+
 
 
 class HHblits(AbstractSequenceObject):
@@ -54,7 +59,10 @@ class HHblits(AbstractSequenceObject):
         self.features['psipred'] = secondary
         self.tier[1] = 'psipred'
         self.svg = ''
-
+        self.hhrfile=''
+        self.outputAlignFile=''
+        self.outputAlignFileFASTA=''
+        
     def addHit(
         self,
         start,
@@ -134,13 +142,13 @@ class HHblits(AbstractSequenceObject):
                 != '/':
                 self.path = self.path + '/'
 
-            outputAlignFile = self.path + self.file + '.a3m'
-            outputAlignFileFASTA = self.path + self.file \
+            self.outputAlignFile = self.path + self.file + '.a3m'
+            self.outputAlignFileFASTA = self.path + self.file \
                 + '.aligned.fasta'
             basename = os.path.basename(self.path + self.file)
-            hhrfile = self.path + os.path.splitext(basename)[0] + '.hhr'
+            self.hhrfile = self.path + os.path.splitext(basename)[0] + '.hhr'
 
-            if not os.path.exists(hhrfile) or self.overwrite:
+            if not os.path.exists(self.hhrfile) or self.overwrite:
                 print 'Running HHblits of {0} using local HHblits'.format(self.file)
                 print 'First pass of HHblits'
 
@@ -184,7 +192,7 @@ class HHblits(AbstractSequenceObject):
                 p = subprocess.Popen([
                     'hhblits',
                     '-o',
-                    hhrfile,
+                    self.hhrfile,
                     '-d',
                     self.dbDictionary[self.db],
                     '-addss',
@@ -195,7 +203,7 @@ class HHblits(AbstractSequenceObject):
                     '-i',
                     self.path + 'temp.a3m',
                     '-oa3m',
-                    outputAlignFile,
+                    self.outputAlignFile,
                     '-n',
                     str(self.iteration),
                     '-E',
@@ -214,9 +222,10 @@ class HHblits(AbstractSequenceObject):
             # HHSUITE packages
             #
 
-            if not os.path.exists(outputAlignFile) or self.overwrite:
+            if not os.path.exists(self.outputAlignFile) or self.overwrite:
+                print "Reformat"
                 p = subprocess.Popen(['reformat.pl', 'a3m', 'fas',
-                        outputAlignFile, outputAlignFileFASTA],
+                        self.outputAlignFile, self.outputAlignFileFASTA],
                         stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
 
@@ -224,8 +233,8 @@ class HHblits(AbstractSequenceObject):
             # Parsing hhr file and add informations into self.feature['hhblits']
             #
 
-            if os.path.exists(hhrfile):
-                f = open(hhrfile, 'r')
+            if os.path.exists(self.hhrfile):
+                f = open(self.hhrfile, 'r')
 
                 filecontents = f.readlines()
                 f.close()
@@ -378,7 +387,7 @@ class HHblits(AbstractSequenceObject):
                             'http://www.rcsb.org/pdb/explore/explore.do?structureId={0}'.format(processedName)
                     self.features['hhblits'].append(hhblits)
 
-            if os.path.exists(outputAlignFile):
+            if os.path.exists(self.outputAlignFile):
 
                 #
                 # Read Secondary Structure Prediction of Query FASTA. a3m files contains
@@ -386,7 +395,7 @@ class HHblits(AbstractSequenceObject):
                 #
 
                 state = {'C': 'Coil', 'H': 'Helix', 'E': 'Sheet'}
-                f = open(outputAlignFile)
+                f = open(self.outputAlignFile)
                 alignFile = f.readlines()
                 f.close()
                 psipred = \
@@ -461,12 +470,24 @@ def main(results):
         ]
 
     # html rendering and save into HTML file.
-
-    t = template.render(headers=headers, hits=hhblits.features['hhblits'
-                        ], hitmap=hitmap)
-    f = open(hhblits.path + 'out.html', 'w')
+    outFileName = "out.html"
+    time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
+    print time
+    print os.path.basename(hhblits.outputAlignFile)
+    t = template.render(results= results, time = time, headers=headers, 
+                        hits=hhblits.features['hhblits'], hitmap=hitmap, 
+                        hhrfile = os.path.basename(hhblits.hhrfile), 
+                        alignment=os.path.basename(hhblits.outputAlignFileFASTA))
+    f = open(hhblits.path + outFileName, 'w')
     f.write(t)
     f.close()
+    PORT=8000
+    Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+    httpd = SocketServer.TCPServer(("", PORT), Handler)
+    print "serving at port", PORT
+    webbrowser.open("http://localhost:8000/"+hhblits.path + outFileName)
+    httpd.serve_forever()
+
 
 
 if __name__ == '__main__':

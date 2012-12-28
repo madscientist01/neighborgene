@@ -99,6 +99,17 @@
             </style>
         <body>
         <div class=row>
+            <div class="hero-unit">
+                <h2>HHblits search for {{results.file}}</h2>
+                <p>Database searched  <span class="label label-info">{{results.db}}</span>
+                   E-Value Cutoff <span class="label label-info">{{results.evalue}}</span>
+                   Iteration <span class="label label-info">{{results.iteration}}</span>
+                   Run Finished at <span class="label label-info">{{time}}</span>
+               </p>
+               <p>Download <a href="{{hhrfile}}">HHblits output file (hhr)    </a> <a href="{{alignment}}">Multiple Sequence Alignment File (fasta)    </a><p>
+            </div>
+        </div>    
+        <div class=row>
         <div class=span1>
         </div>
         <div class=span11>
@@ -120,7 +131,7 @@
                         {{hit.resolution}}
                     </td>
                     <td>
-                        {{hit.description}};{{hit.description2}}
+                        <a href="#{{hit.name}}">{{hit.description}};{{hit.description2}}</a>
                     </td>
                     <td>
                         {{hit.evalue}}
@@ -154,19 +165,41 @@
         <div class=row>
         <div class=span1>
         </div>
-        <div class=span3 id="{{hit.name}}">
+        <div class=span3>
+            <a name="{{hit.name}}" id="{{hit.name}}"></a>
             <div class="well well-small">
-                {% if hit.color == "red" %} 
+                <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h3></a>
+                <h5>{{hit.description}}</h5>
+                <h5><em>{{hit.specie}}</em></h5>
+                Probability
+                {% if hit.color == "red" or hit.color == "crimson" %} 
                 <span class="label label-important">
+                {% elif hit.color == "orange" or hit.color == "yellow" %} 
+                <span class="label label-warning">
+                {% elif hit.color == "lawngreen" or hit.color == "green" %} 
+                <span class="label label-success">
+                {% elif hit.color == "blue" or hit.color == "violet" %} 
+                <span class="label label-info">
                 {% else %}
                 <span class="label">
                 {% endif %}
-                    <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h4></a>
+                {{hit.probability}}%
                 </span>
-                <h5>{{hit.description}}</h5>
-                <h5><em>{{hit.specie}}</em></h5>
-                E-value:{{hit.evalue}}         Score:{{hit.score}}<br>
-                Probability:{{hit.probability}}       Identity{{hit.identity}}%<br>
+                E-value 
+                {% if hit.color == "red" or hit.color == "crimson" %} 
+                <span class="label label-important">
+                {% elif hit.color == "orange" or hit.color == "yellow" %} 
+                <span class="label label-warning">
+                {% elif hit.color == "lawngreen" or hit.color == "green" %} 
+                <span class="label label-success">
+                {% elif hit.color == "blue" or hit.color == "violet" %} 
+                <span class="label label-info">
+                {% else %}
+                <span class="label">
+                {% endif %}
+                {{hit.evalue}}
+                </span><br>
+                Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span>
             </div>
         </div>
         <div class=span8>
