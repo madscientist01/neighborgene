@@ -9,11 +9,11 @@ import os
 import pymysql
 import argparse
 import sys
+import jinja2
 from orf import ORF
 from orfdrawer import ORFDrawer
 from phmmerclust import PhmmerSearch
 from colorcycler import ColorCycler
-from htmltable import HTMLTable
 from svgList import SVGList
 from hmmscan import Hmmer
 from cdhitcluster import CDHitSearch
@@ -568,94 +568,31 @@ class NeighborGene(object):
         #
         # Table Generation
         #
-        header = ['Cluster', '#','Pfam Hits', 'Descriptions']
-        table = HTMLTable(header=header)
-        # Setup for the DataTable
-        # Table content generations
-        table.scriptcontent="""           
-                $('#listtable').dataTable({
-                    "sDom": "<'row'<'span8'l>r>t<'row'<'span8'i><'span8'p>>",
-                     "iDisplayLength": 50,
-                     "aoColumnDefs": [
-                     { "sWidth": "60px", "aTargets": [ 0 ] },
-                     { "sWidth": "20px", "aTargets": [ 1 ] },                
-                     ]                                    
-                    });
-        """
-        table.style ="""                  
-            <style>
-            table{
-                font-family: "Arial",Sans-Serif;
-                font-size: 12px;
-                margin: 40px;
-                width:1000px;
-                text-align: left;
-                border-collapse: collapse;  
-                }
-            tr.conditionalRowColor
-            {
-
-            }
-                
-             td.conditionalRowColor
-            {
-                background-color:#FFEEEE;
-            }
-
-            .scrollable {
-            height: 100%;
-            overflow: auto;
-            }
-            div.head {
-                width:800px;
-                font-family: Sans-Serif;
-                font-size: 14px;
-                border:3px solid #EEEEEE;
-                border-radius: 10px;
-                padding: 10px;
-                align :center;
-                background-color: #FFFFFF;
-                }
-           div.dataTables_length label {
-                width: 460px;
-                float: left;
-                text-align: left;
-            }
-             
-            div.dataTables_length select {
-                width: 75px;
-            }
-             
-            div.dataTables_filter label {
-                float: right;
-                width: 460px;
-            }
-             
-            div.dataTables_info {
-                padding-top: 8px;
-            }
-             
-            div.dataTables_paginate {
-                float: right;
-                margin: 0;
-            }
-             
-            table {
-                clear: both;
-            } 
-            </style>
-        """
+      
         
-        svgList = SVGList(svgEmbeddingTemplate='<div class="domain" id="{0}">{1}</div>')
+        svgList = []
         for i in range(len(self.dataList)):
-            specieid = self.sourceList[i]
-            svgList.svgContentFill([specieid, svgContent[i]])      
-        svg = svgList.svgEmbedContent
-        
+            svg = {"id":self.sourceList[i],
+                   "content":svgContent[i]
+                 }
+            svgList.append(svg)
+
+        svg2=orfdraw.drawClusterTable(self.clusters,self.clusterNames,self.clusterColors)     
         link = "<a href='http://www.ncbi.nlm.nih.gov/protein/{0}?report=genpept'>{1}</a>"   
         clusterlink = "<a id='{0}' name='{0}'>{0}</a>"
         annotationLink = "<a href='http://pfam.sanger.ac.uk/family/{0}'>{1}</a>"
+       
+        jinja_environment = \
+        jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+        template = jinja_environment.get_template('neighborgenetable.html')
+
+    # header for the hits information table
+        headers = ['Cluster', '#','Pfam Hits', 'Descriptions']
         
+    # html rendering and save into HTML file.
+
+        clusterInfo = []
+
         for i in range(len(clusters)):
             clust = self.clusterNames[i].replace(" ","")
             clusterName = clusterlink.format(clust)
@@ -669,19 +606,34 @@ class NeighborGene(object):
 
             tableDescriptions = ' , '.join(desc)
             annotationDescriptions = " ,".join(pfam)
-            if clust !=standardCluster.replace(" ",""):
-                table.tableContentFill([clusterName, clusterMemberNo, annotationDescriptions, tableDescriptions])
-            else:
-                table.tableContentMarkFill([clusterName, clusterMemberNo, annotationDescriptions, tableDescriptions])       
+            cluster =  {
+                        "clusterName":clusterName,
+                        "clusterMemberNo":clusterMemberNo,
+                        "annotationDescriptions":annotationDescriptions,
+                        "tableDescriptions":tableDescriptions
+                        }
+            clusterInfo.append(cluster)
         
-        svg2=orfdraw.drawClusterTable(self.clusters,self.clusterNames,self.clusterColors)     
-        table.extra = '<div class="span12 scrollable">'+svg2+'</div><div class="span12 scrollable">' + svg + '</div>'  
-        table.tableGenerate(self.path+dataFile)
+        # time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
+        # print os.path.basename(hhblits.outputAlignFile)
+
+        params = {
+                    "filename":self.fastaseq,
+                    "searchdb":self.annotationdb,
+                    "clustering":self.clusteringMode 
+        }
+        
+        t = template.render(params = params, headers = headers, clusters=clusterInfo, svgList = svgList, svg2 = svg2)
+        f = open(self.path + self.outputFile, 'w')
+        f.write(t)
+        f.close()
+      
+
         # run simpleHTTPServer and load html report in default Browser
         Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
         httpd = SocketServer.TCPServer(("", PORT), Handler)
         print "serving at port", PORT
-        webbrowser.open(linkFormat.format(self.path+dataFile))
+        webbrowser.open(linkFormat.format(self.path+self.outputFile))
         httpd.serve_forever()
 
 
