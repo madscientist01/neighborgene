@@ -4,7 +4,6 @@
 # Scripts for the examination of neighborhood genes of bacterial genome
 # Require locally installed Hmmer 3.0, CD-HIT, MySQL, pymysql
 #
-
 import re
 import os
 import pymysql
@@ -226,13 +225,11 @@ def extractMultiFasta(multifasta,path,searchId,overwrite=False):
                     capture = True
                     refseq = id
                     desc = match.group(3)
-                    organism = match.group(4)
-                
+                    organism = match.group(4)             
             if capture:
                 buffer.append(line)
 
-        if capture:
-            
+        if capture:            
             print "Extracting "+refseq + '.fasta'
             fw = open(path+refseq + '.fasta', 'w')
             fw.writelines(buffer)
@@ -255,6 +252,46 @@ def extractMultiFasta(multifasta,path,searchId,overwrite=False):
                 refseqs.append(id)             
     return (refseqs,descriptions, organisms, fileNames)
 
+def extractRepresentive(multifasta,saveName,overwrite=False):
+    '''
+    Extract Longest sequence of FASTA record in MultiFASTA file.
+    Used for the representive sequences in Clustered FASTA file.
+    '''
+    capture = False
+    length = {}
+    buffers = {}
+    buffer = []
+    if os.path.exists(multifasta) or overwrite:
+        f = open(multifasta)
+        gi = re.compile('>gi\|(\S+)\|ref\|(\S+)\| (.*) \[(.*)\]')
+        refseq = ''
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            match = gi.match(line)
+            if match:
+                if capture:
+                    buffers[refseq]=buffer 
+                    length[refseq]=len(''.join(buffer))
+                    capture = False
+                    refseq = ''
+                    buffer = []
+
+                capture = True
+                refseq = match.group(2)    
+            if capture:
+                buffer.append(line)
+        if capture:
+            buffers[refseq]=buffer 
+            length[refseq]=len(''.join(buffer))
+        longest = max(length, key=length.get)
+        fw = open(saveName, 'w')
+        fw.writelines(buffers[longest])
+        fw.close
+    return ()
+
+
 class NeighborGene(object):
     '''
     Process NeighborHood Genes and Perform Clustering
@@ -270,14 +307,10 @@ class NeighborGene(object):
         self.clusteringMode = kwargs.get('clusteringmode','cdhit')
         self.folder = kwargs.get('folder')
         if self.folder:
-            regex = re.compile("([^\.]+).[^\.]")
-            match = regex.match(self.queryFasta)
-            if match:
-                self.path = match.group(1)
-            else:
-                self.path = ""
+            basename = os.path.basename(self.queryFasta)
+            self.path = os.path.splitext(basename)[0]
         else:
-            self.path=""
+            self.path = ""
         if not self.clusteringMode in ['cdhit', 'phmmer']:
             self.clusteringMode = 'cdhit'
         self.clusters = []
@@ -349,14 +382,19 @@ class NeighborGene(object):
         using hmmscan, find out Pfam Hits of the FIRST member of clusters
         '''
         representiveFASTA = []
-        
+        clusterDir=self.path+"cluster"
+        if not(os.path.isdir(clusterDir)):
+            print "Generating Directory {0}. All of representive cluster files will be saved there.".format(clusterDir)
+            os.mkdir(clusterDir)
         
         for i in range(len(self.clusters)):
             fileList = []
             [fileList.append(self.path+member+".fasta") for member in self.clusters[i]]
             combinedFastaName = self.path+"Cluster{num:03d}.fasta".format(num=i+1)
             makeMultiFasta(fileList, combinedFastaName)
-            representiveFASTA.append(self.path+self.clusters[i][0]+".fasta")
+            saveName = clusterDir+"/ClusterRep{num:03d}.fasta".format(num=i+1)
+            extractRepresentive(combinedFastaName,saveName,overwrite=False)
+            representiveFASTA.append(saveName)
         
         representedFastaName = self.path+"representive.fasta"
         makeMultiFasta(representiveFASTA, representedFastaName)
@@ -403,6 +441,9 @@ class NeighborGene(object):
                               score=self.score,
                               overwrite=self.overwrite)
         phmmer.runLocal()
+        if len(phmmer.hits)==0:
+	    print "No hit found. current score threshold is {0}. Consider decrease threshold no.".format(self.score)
+	    sys.exit()
         for hit in phmmer.hits:
             print hit.target, hit.query, hit.desc, hit.evalue
         # generated align.sto file is converted as hmm using hmmbuild 
@@ -506,7 +547,6 @@ class NeighborGene(object):
             clusters = cdhit.clusters
 
         standardCluster = self.clusterInfoInjection(clusters,originalSearchAccession)
-        print standardCluster
         self.findLength()
         self.clusterHMMscan()
 
@@ -524,12 +564,10 @@ class NeighborGene(object):
                             standardDirection = '+'
                             )  
         orfdraw.drawSVG()
-        (svgFileNames, svgContent)=orfdraw.drawMultiSVG()
-        
+        (svgFileNames, svgContent)=orfdraw.drawMultiSVG()      
         #
         # Table Generation
         #
-
         header = ['Cluster', '#','Pfam Hits', 'Descriptions']
         table = HTMLTable(header=header)
         # Setup for the DataTable
@@ -684,7 +722,7 @@ if __name__ == '__main__':
         '--score_cutoff',
         action='store',
         dest='score',
-        default=500,
+        default=100,
         type=float,
         help='HMMER score cutoff (Higher score means high stringency)',
         )
@@ -716,12 +754,12 @@ if __name__ == '__main__':
         '-p',
         '--phmmer_clustering',
         action='store_true',
-        dest='pfamclustering',
+        dest='phmmerclustering',
         default=False,
         help='Use phmmer clustering (sensitive but much slower than default CD-HIT clustering)',
     )
     results = parser.parse_args() 
-    if results.pfamclustering:
+    if results.phmmerclustering:
         method = 'phmmer'
     else:
         method = 'cdhit'   

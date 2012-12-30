@@ -36,7 +36,7 @@ class PhmmerSearch(object):
         self.file = kwargs.get('file')
         self.db = kwargs.get('db')
         self.align = kwargs.get('align','align.sto')
-        self.cutoff = kwargs.get('evalue', 1e-5)
+        self.cutoff = kwargs.get('evalue', 1e-10)
         self.score = kwargs.get('score',0)
         self.hits = []
         self.color = kwargs.get('color')
