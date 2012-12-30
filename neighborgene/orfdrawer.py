@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import xml.etree.cElementTree as ET
 import re
-import sys
 from operator import attrgetter
 
 def splitsentence(word):
@@ -184,8 +183,9 @@ class ORFDrawer(object):
                 fontSize,
                 conversion,
                 boxHeight,
-                )        
-            svgFileName = self.path+self.organismDic[i] + '.svg'
+                )
+            organismName = re.sub("\W", "_", self.organismDic[i])
+            svgFileName = self.path+organismName + '.svg'
             self.saveSVG(svgFileName, doc)
             svgFileNames[i] = svgFileName
             svgContent[i] = ET.tostring(doc)
@@ -508,7 +508,7 @@ class ORFDrawer(object):
             label.text = str(i+1)
             link.append(label)
             doc.append(link)
-        # Draw several domain arcorfecture in single SVG
+        # Draw several domain architure in single SVG
         for j in range(len(self.results)):
             
             specieid = self.source[j]

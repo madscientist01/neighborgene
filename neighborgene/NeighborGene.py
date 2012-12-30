@@ -14,7 +14,6 @@ from orf import ORF
 from orfdrawer import ORFDrawer
 from phmmerclust import PhmmerSearch
 from colorcycler import ColorCycler
-from svgList import SVGList
 from hmmscan import Hmmer
 from cdhitcluster import CDHitSearch
 from collections import defaultdict
@@ -174,83 +173,6 @@ def extractRefSeq(data):
     else:
         refseq = data
     return refseq
-
-def extractMultiFasta(multifasta,path,searchId,overwrite=False):
-    '''
-    extract given RefSeq Ids(searchId) as individual FASTA file from given multifasta file.
-    Parse out refseq Id, descriptions and organism name from the FASTA header and return
-    as dictionary refseqs,descriptions and organisms (Key is Refseq Id)
-    '''
-    capture = False
-    fileNames = {}
-    descriptions = {}
-    organisms = {}
-    refseqs = []
-    buffer = []
-    gi = re.compile('>gi\|(\S+)\|ref\|(\S+)\| (.*) \[(.*)\]')
-    for i in searchId:
-        if os.path.exists(path+i+'.fasta'):
-            run = False
-        else:
-            run = True
-    if run or overwrite:
-        f = open(multifasta)
-        gi = re.compile('>gi\|(\S+)\|ref\|(\S+)\| (.*) \[(.*)\]')
-        # gid = ''
-        desc=''
-        organism = ''
-        id = ''
-        refseq = ''
-        while True:
-            line = f.readline()
-            if not line:
-                break
-            match = gi.match(line)
-            if match:
-                if capture:
-                    print refseq + '.fasta'
-                    fw = open(path+refseq + '.fasta', 'w')
-                    fw.writelines(buffer)
-                    fw.close
-                    fileNames[id] = path+refseq + '.fasta'
-                    descriptions[id]=desc
-                    organisms[id]=organism
-                    refseqs.append(id)
-                    capture = False
-                    refseq = ''
-                    buffer = []
-
-                id = match.group(2).strip()
-                if id in searchId:
-                    capture = True
-                    refseq = id
-                    desc = match.group(3)
-                    organism = match.group(4)             
-            if capture:
-                buffer.append(line)
-
-        if capture:            
-            print "Extracting "+refseq + '.fasta'
-            fw = open(path+refseq + '.fasta', 'w')
-            fw.writelines(buffer)
-            fw.close
-            capture = False
-            refseq = ''
-            buffer = []
-            fileNames[id] = path+refseq + '.fasta'
-    else:
-        print "Files are exist."
-        for i in searchId:
-            fileNames[i]=path+i+'.fasta'
-            f = open(fileNames[i])
-            line = f.readline()
-            match = gi.match(line)
-            if match:
-                id = match.group(2)
-                descriptions[id]=match.group(3)
-                organisms[id]=match.group(4)
-                refseqs.append(id)             
-    return (refseqs,descriptions, organisms, fileNames)
 
 def extractRepresentive(multifasta,saveName,overwrite=False):
     '''
@@ -507,8 +429,8 @@ class NeighborGene(object):
                 self.dataList.append(orfData)
                 self.sourceList.append(source)
                 #
-                    # extract FASTA file based on the refseq id from self.fastaseq (FASTA database)
-                    #
+                # extract FASTA file based on the refseq id from self.fastaseq (FASTA database)
+                #
         c.close()
         conn.close()
         extractlist = self.path+'extractlist.txt'
@@ -516,7 +438,6 @@ class NeighborGene(object):
         f.writelines(accessions)
         f.close()
 
-        # (refseqs, descriptions,organisms,fileNames)=extractMultiFasta(self.fastaseq, self.path, extract,self.overwrite)
         (refseqs, descriptions,organisms,fileNames)=esl_sfetch(self.fastaseq, self.path, extractlist, self.path+tempFile)
                     
 
@@ -529,8 +450,7 @@ class NeighborGene(object):
        #
        # Concatenate all of hit as single mutifasta
        #
-        # makeMultiFasta(allFiles, self.path+tempFile)
-
+    
         if self.clusteringMode =="phmmer":
             phmmer = PhmmerSearch(file=self.path+tempFile,
                                   db=self.path+tempFile,
