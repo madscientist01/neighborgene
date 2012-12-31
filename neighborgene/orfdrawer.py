@@ -58,22 +58,23 @@ class ORFDrawer(object):
 
     def setStandard(self):
         standardStart = 0
-        orfs = self.results[standardStart]
+        (organismName, organism, start, end, length, orfs) = self.results[standardStart]
         for orf in orfs:
             if orf.accession == self.standardCluster:
-                standardStart = orf.start - self.startDic[standardStart]
+                standardStart = orf.start - start
                 self.standardDirection = orf.direction
                               
         for i in range(len(self.results)):
             self.xDeltaDic.append(0)
-            for orf in self.results[i]:
+            (organismName, organism, start,end,length, orfs) = self.results[i]
+            for orf in orfs:
                 if orf.accession == self.standardCluster:
                     if self.standardDirection == orf.direction:
-                        orfstart = orf.start - self.startDic[i]
+                        orfstart = orf.start - start
                         self.xDeltaDic[i]=standardStart - orfstart
                         # print orfstart, standardStart
                     else:
-                        orfend = self.endDic[i] - orf.end 
+                        orfend = end - orf.end 
                         self.xDeltaDic[i]=standardStart - orfend 
         return (max([abs(x) for x in self.xDeltaDic]))
 
@@ -118,7 +119,7 @@ class ORFDrawer(object):
         # Draw several domain arcorfecture in single SVG
         
         for i in range(len(self.results)):
-            specie = self.results[i]
+            (organismName, organism, start, end, length, specie) = self.results[i]
             doc = self.singleLabel(
                 i,
                 specie,
@@ -179,7 +180,7 @@ class ORFDrawer(object):
         # find alignment
         #
         for i in range(len(self.results)):
-            specie = self.results[i]
+            (organismName, organism, start, end, length, specie) = self.results[i]
             doc = ET.Element('svg', width=str(canvasWidth),
                              height=str(canvasHeight), version='1.2',
                              xmlns='http://www.w3.org/2000/svg')
@@ -198,8 +199,8 @@ class ORFDrawer(object):
                 conversion,
                 boxHeight,
                 )
-            organismName = re.sub("\W", "_", self.organismDic[i])
-            svgFileName = self.path+organismName + '.svg'
+            displayOrganismName = re.sub("\W", "_", organismName)
+            svgFileName = self.path+displayOrganismName + '.svg'
             self.saveSVG(svgFileName, doc)
             label = ET.Element('svg', width=str(labelWidth),
                              height=str(canvasHeight), version='1.2',
@@ -226,7 +227,7 @@ class ORFDrawer(object):
          
         defs = ET.Element('defs')
         gradientList = []
-        for orfs in self.results:
+        for (organismName, organism, start, end, length, orfs) in self.results:
             for orf in orfs:
                 if orf.gradient:
                     gradientid = 'gradient_' + orf.color
@@ -266,11 +267,12 @@ class ORFDrawer(object):
         '''
          # Draw Line
         # print specieid, self.xDeltaDic[specieid], int(self.xDeltaDic[specieid]*conversion)
+        (organismName, organism, start, end, length, orfs) = self.results[i]
         line = ET.Element(
             'line',
             x1=str(leftMargin+int(self.xDeltaDic[i]*conversion)),
             y1=str(y),
-            x2=str(leftMargin + int((self.xDeltaDic[i]+self.lengthDic[i]) * conversion)),
+            x2=str(leftMargin + int((self.xDeltaDic[i]+length) * conversion)),
             y2=str(y),
             style='stroke:rgb(200,200,200);stroke-width:4',
             )
@@ -282,28 +284,29 @@ class ORFDrawer(object):
                 invertedMode = True
          # Start and End Amino Acid Number
         if invertedMode:
-            startText = str(self.endDic[i])
-            endText = str(self.startDic[i])
+            startText = str(end)
+            endText = str(start)
         else:
-            startText = str(self.startDic[i])
-            endText = str(self.endDic[i])
+            startText = str(start)
+            endText = str(end)
         
-        start = ET.Element('text', x=str(int (leftMargin - len(startText)*fontSize*0.5+int(self.xDeltaDic[i]*conversion))), y=str(y), 
+        startDoc = ET.Element('text', x=str(int (leftMargin - len(startText)*fontSize*0.5+int(self.xDeltaDic[i]*conversion))), y=str(y), 
                             fill='black', 
                             style='font-family:Sans-Serif;font-size:13px;text-anchor:right;dominant-baseline:middle'
                            )
-        start.text = startText
-        doc.append(start)
-        end = ET.Element('text', x=str(leftMargin + int((self.xDeltaDic[i]+self.lengthDic[i]) * conversion)), y=str(y), 
+        startDoc.text = startText
+        doc.append(startDoc)
+        endDoc = ET.Element('text', x=str(leftMargin + int((self.xDeltaDic[i]+length) * conversion)), y=str(y), 
                         fill='black',
                         style='font-family:Sans-Serif;font-size:13px;text-anchor:left;dominant-baseline:middle'
                         )
-        end.text = endText
-        doc.append(end)
+        endDoc.text = endText
+        doc.append(endDoc)
 
         orfs.sort(key = attrgetter('start'))
         for orf in orfs:
             if not orf.exclude:
+                print orf.name, orf.color
                 color = orf.color
                 if orf.border:
                     if orf.accession ==self.standardCluster:
@@ -340,11 +343,11 @@ class ORFDrawer(object):
                         direction = "-"
                     else:
                         direction = "+"
-                    orfstart = self.lengthDic[i]+self.startDic[i]-orf.end+self.xDeltaDic[i]
-                    orfend = self.lengthDic[i]+self.startDic[i]-orf.start+self.xDeltaDic[i]
+                    orfstart = length+start-orf.end+self.xDeltaDic[i]
+                    orfend = length+start-orf.start+self.xDeltaDic[i]
                 else:
-                    orfstart = orf.start-self.startDic[i]+self.xDeltaDic[i]
-                    orfend = orf.end-self.startDic[i]+self.xDeltaDic[i]
+                    orfstart = orf.start-start+self.xDeltaDic[i]
+                    orfend = orf.end-start+self.xDeltaDic[i]
                     direction = orf.direction
                 arrowhead = 10
                 arrowheight = 7
@@ -476,24 +479,24 @@ class ORFDrawer(object):
          Draw Protein Text
          Return ElementTree Doc object as SVG container 
         '''
-        id = self.source[i]
-        if len(id) > 0:
+        (organismName, organism, start, end, length, orfs) = self.results[i]
+        if len(organism) > 0:
 
             linkAddress = 'http://www.ncbi.nlm.nih.gov/nuccore/{0}'
             
             link = ET.Element('a')
             link.attrib['xlink:href'] = \
-                linkAddress.format(id)
+                linkAddress.format(organism)
 
         text = ET.Element('text', x=str(fontSize),
                           y=str(y),
                           fill='black',
                           style='font-family:Sans-Serif;font-weight:bold;font-size:16px;text-anchor:left;dominant-baseline:middle'
                           )
-        text.text = self.organismDic[i]
-        text.attrib['id'] = id
+        text.text = organismName
+        text.attrib['id'] = organism
 
-        if len(id) > 0:
+        if len(organism) > 0:
             link.append(text)
             doc.append(link)
         else:
@@ -506,13 +509,13 @@ class ORFDrawer(object):
         '''
         # Find Maximum Length of ORF (as nucleotide. Not amino acid!) in each Clusters
         clusterLengthMax = {}
-        for specie in self.results:
+        for (organismName, organism, start, end, length, specie) in self.results:
             for orf in specie:
-                length = orf.end - orf.start
+                orfLength = orf.end - orf.start
                 if not orf.accession in clusterLengthMax:
-                    clusterLengthMax[orf.accession]=length
+                    clusterLengthMax[orf.accession]=orfLength
                 elif length>clusterLengthMax[orf.accession]:
-                    clusterLengthMax[orf.accession]=length
+                    clusterLengthMax[orf.accession]=orfLength
 
         y = 70
         rightMargin = 100
@@ -554,7 +557,7 @@ class ORFDrawer(object):
         # Draw several domain architure in single SVG
         for j in range(len(self.results)):
             
-            specie = self.results[j]
+            (organismName, organism, start, end, length, specie) = self.results[j]
             
             for i in range(len(clusters)):
                 x = leftMargin + i* boxWidth
@@ -613,17 +616,17 @@ class ORFDrawer(object):
         
         for j in range(len(self.results)):
             
-            specieid = self.source[j]
+            (organismName, organism, start, end, length, specie) = self.results[j]
             linkAddress = 'http://www.ncbi.nlm.nih.gov/nuccore/{0}'
             link = ET.Element('a')
-            link.attrib['xlink:href'] = linkAddress.format(specieid)
+            link.attrib['xlink:href'] = linkAddress.format(organism)
             text = ET.Element('text', x=str(fontSize),
                               y=str(int(y+boxHeight/2)),
                               fill='black',
                               style='font-family:Sans-Serif;font-weight:bold;font-size:16px;text-anchor:left;dominant-baseline:bottom'
                               )
-            text.text = self.organismDic[j]
-            text.attrib['id'] = specieid
+            text.text = organismName
+            text.attrib['id'] = organism
             link.append(text)
             doc.append(link)
             y += yDelta

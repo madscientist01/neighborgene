@@ -10,6 +10,7 @@ import pymysql
 import argparse
 import sys
 import jinja2
+import operator
 from orf import ORF
 from orfdrawer import ORFDrawer
 from phmmerclust import PhmmerSearch
@@ -138,7 +139,6 @@ def esl_sfetch(multifasta, path, extractlist, extractedFile):
                 capture = True
                 refseq = id
                 desc = match.group(3)
-                organism = match.group(4)
                 
             if capture:
                 buffer.append(line+'\n')
@@ -153,9 +153,8 @@ def esl_sfetch(multifasta, path, extractlist, extractedFile):
             buffer = []
             fileNames[id] = path+refseq + '.fasta'
             descriptions[id]=desc
-            organisms[id]=organism
             refseqs.append(id)
-            return (refseqs,descriptions, organisms, fileNames)
+            return (refseqs,descriptions,fileNames)
     else:
         print "{0} is not found. stop.".format(multifasta)
         sys.exit()
@@ -277,36 +276,14 @@ class NeighborGene(object):
                         clusterNo[clusterName]+=1
                     else:
                         clusterNo[clusterName]=1 
-                for specie in self.dataList:
-                    for orf in specie:
+                for (organismName, organism, start, end, length, orfs) in self.dataList:
+                    for orf in orfs:
                         if member == orf.name:
                             orf.accession = clusterName
                             orf.color = clusterColor
             n+=1
 
         return (max(clusterNo,key=clusterNo.get))
-
-    def findLength(self):
-        '''     (FIX)
-        Find start and end point of ORFs
-        '''
-      
-        for i in range(len(self.dataList)):
-           
-            start = 1e+100000
-            end = 0
-            for orf in self.dataList[i]:
-                if start > orf.start:
-                    start = orf.start
-                if end < orf.end:
-                    end = orf.end
-                organism = orf.organism
-            length = end - start
-            self.startDic.append(start)
-            self.endDic.append(end)
-            self.lengthDic.append(length)
-            self.organismDic.append(organism)
-        return()
 
     def clusterHMMscan(self):
         '''
@@ -410,14 +387,16 @@ class NeighborGene(object):
         extract = []
         accessions = []
         sourceList = []
+
         for hit in hmmSearch.hits:
             t=[hit.target]
             #
             # First query exact phmmer match (seed) from gff table
             #
-            c.execute('SELECT gff.organism, gff.start, gff.end, gff.direction, gff.protein FROM gff WHERE protein=%s',t)
+            c.execute('SELECT gff.organism, gff.start, gff.end, gff.direction, gff.protein,organism.organismName FROM gff, organism WHERE gff.organism=organism.organism and protein=%s',t)
             for row in c.fetchall():
-                (organism, start, end, direction, id) = row
+                (organism, start, end, direction, id,organismName) = row
+                print row
                 # search ORF located between lowerbound (bp) < gene of intereste < upperbound(bp)
                 searchStart = start - lowerBound
                 searchEnd = end + upperBound
@@ -431,6 +410,7 @@ class NeighborGene(object):
                 c.execute(query,f)
                 for newrow in c.fetchall():    
                     (source, start, end, direction, name, accession) = newrow
+                    
                     extract.append(name)
                     accessions.append(accession+"\n")
                     link = memberLink.format(name)
@@ -439,13 +419,30 @@ class NeighborGene(object):
                               end=end,
                               direction=direction,
                               link=link,
-                              name=name)
+                              name=name,
+                              organism = organismName
+                              )
 
                     orfData.append(orf) 
                     sourceList.append(source)
-                    
-                self.dataList.append(orfData)
+                
+                start = 1e+100000
+                end = 0
+                for orf in orfData:
+                    if start > orf.start:
+                        start = orf.start
+                    if end < orf.end:
+                        end = orf.end
+
+                length = end - start
+                
+                self.dataList.append((organismName, organism, start, end, length, orfData))
+
                 self.sourceList.append(source)
+                self.startDic.append(start)
+                self.endDic.append(end)
+                self.lengthDic.append(length)
+                self.organismDic.append(organismName)
                 #
                 # extract FASTA file based on the refseq id from self.fastaseq (FASTA database)
                 #
@@ -456,16 +453,15 @@ class NeighborGene(object):
         f.writelines(accessions)
         f.close()
 
-        (refseqs, descriptions,organisms,fileNames)=esl_sfetch(self.fastaseq, self.path, extractlist, self.path+tempFile)
+        (refseqs, descriptions,fileNames)=esl_sfetch(self.fastaseq, self.path, extractlist, self.path+tempFile)
                     
-
         allFiles+=fileNames.values()
         for i in range(len(self.dataList)):
-            for orf in self.dataList[i]:
+            (organismName, organism, start, end, length, orfs) = self.dataList[i]
+            for orf in orfs:
                 orf.description = descriptions[orf.name]
-                orf.organism = organisms[orf.name]
                 orf.file = fileNames[orf.name]
-       #
+                 
        # Concatenate all of hit as single mutifasta
        #
     
@@ -485,10 +481,10 @@ class NeighborGene(object):
             clusters = cdhit.clusters
 
         standardCluster = self.clusterInfoInjection(clusters,originalSearchAccession)
-        self.findLength()
         self.clusterHMMscan()
 
         # draw results
+        self.dataList.sort(key=operator.itemgetter(0))
         orfdraw = ORFDrawer(outputSVG=self.path+self.outputFile+".svg", 
                             results=self.dataList,
                             startDic=self.startDic,
@@ -510,7 +506,8 @@ class NeighborGene(object):
         
         svgList = []
         for i in range(len(self.dataList)):
-            svg = {"id":self.sourceList[i],
+            (organismName,organism,start,end,length, orfs) = self.dataList[i]
+            svg = {"id":organism,
                    "content":svgContent[i],
                    "label":svgLabels[i]
                  }
