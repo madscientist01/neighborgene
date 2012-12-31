@@ -3,6 +3,7 @@
 import xml.etree.cElementTree as ET
 import re
 from operator import attrgetter
+from colorcycler import blackOrWhite
 
 def splitsentence(word):
     wordlist = re.split("(\W+)", word)
@@ -76,63 +77,74 @@ class ORFDrawer(object):
                         self.xDeltaDic[i]=standardStart - orfend 
         return (max([abs(x) for x in self.xDeltaDic]))
 
-    # def drawSVG(self):
-    #     '''
-    #     Draw SVG based on the orf annotation
-    #     '''
-    #     x = 50
-    #     y = 70
-    #     rightMargin = 100
-    #     fontSize = 16
-    #     boxHeight = 20
-    #     maxLength = max(self.lengthDic)
-    #     maxTitleLength = len(max(self.organismDic, key=lambda x:len(x)))
-    #     self.setStandard()
-    #     extraLeftMargin =0
-    #     if min(self.xDeltaDic)<0:
-    #         extraLeftMargin =abs(min(self.xDeltaDic))
-    #     else:
-    #         extraLeftMargin = -abs(min(self.xDeltaDic))
-    #     extraRightMargin = max(self.xDeltaDic)
-    #     canvasWidth = int((maxLength+extraLeftMargin+extraRightMargin) * self.scaleFactor)
-    #     leftMargin = int(maxTitleLength * fontSize * 0.65)+int(extraLeftMargin*self.scaleFactor)+50
-    #     effectiveWidth = canvasWidth - leftMargin - rightMargin
-    #     conversion = float(effectiveWidth) / float(maxLength)
-    #     yDelta = 60
-    #     canvasHeight = len(self.results) * yDelta + 100
+    def drawSVG(self):
+        '''
+        Draw SVG based on the orf annotation
+        '''
+        x = 50
+        y = 70
+        rightMargin = 100
+        fontSize = 16
+        boxHeight = 20
+        maxLength = max(self.lengthDic)
+        maxTitleLength = len(max(self.organismDic, key=lambda x:len(x)))
+        self.setStandard()
+        extraLeftMargin =0
+        if min(self.xDeltaDic)<0:
+            extraLeftMargin =abs(min(self.xDeltaDic))
+        else:
+            extraLeftMargin = -abs(min(self.xDeltaDic))
+        extraRightMargin = max(self.xDeltaDic)
+        canvasWidth = int((maxLength+extraLeftMargin+extraRightMargin) * self.scaleFactor)
+        leftMargin = int(maxTitleLength * fontSize * 0.65)+int(extraLeftMargin*self.scaleFactor)+50
+        effectiveWidth = canvasWidth - leftMargin - rightMargin
+        conversion = float(effectiveWidth) / float(maxLength)
+        yDelta = 60
+        canvasHeight = len(self.results) * yDelta + 100
 
         
-    #     # doc is elementTree container for svg
+        # doc is elementTree container for svg
 
-    #     doc = ET.Element('svg', width=str(canvasWidth),
-    #                      height=str(canvasHeight), version='1.2',
-    #                      xmlns='http://www.w3.org/2000/svg')
-    #     doc.attrib['xmlns:xlink'] = 'http://www.w3.org/1999/xlink'
+        doc = ET.Element('svg', width=str(canvasWidth),
+                         height=str(canvasHeight), version='1.2',
+                         xmlns='http://www.w3.org/2000/svg')
+        doc.attrib['xmlns:xlink'] = 'http://www.w3.org/1999/xlink'
 
-    #     # Color and Gradient Assignment
+        # Color and Gradient Assignment
 
-    #     defs = self.colorDef()
-    #     doc.append(defs)
+        defs = self.colorDef()
+        doc.append(defs)
 
-    #     # Draw several domain arcorfecture in single SVG
+        # Draw several domain arcorfecture in single SVG
         
-    #     for i in range(len(self.results)):
-    #         specie = self.results[i]
-    #         doc = self.singleSVG(
-    #             i,
-    #             specie,
-    #             doc,
-    #             x,
-    #             y,
-    #             leftMargin,
-    #             fontSize,
-    #             conversion,
-    #             boxHeight,
-    #             )
-    #         y += yDelta
+        for i in range(len(self.results)):
+            specie = self.results[i]
+            doc = self.singleLabel(
+                i,
+                specie,
+                doc,
+                x,
+                y,
+                leftMargin,
+                fontSize,
+                conversion,
+                boxHeight,
+                )
+            doc = self.singleSVG(
+                i,
+                specie,
+                doc,
+                x,
+                y,
+                leftMargin,
+                fontSize,
+                conversion,
+                boxHeight,
+                )
+            y += yDelta
 
-    #     self.saveSVG(self.outputSVG, doc)
-    #     return '\n'.join(ET.tostringlist(doc))
+        self.saveSVG(self.outputSVG, doc)
+        return '\n'.join(ET.tostringlist(doc))
 
     def drawMultiSVG(self):
         '''
@@ -314,8 +326,12 @@ class ORFDrawer(object):
                 if len(str(orf.accession))*labelfont*0.5 > (orf.end-orf.start)*conversion:
                     labelYPos = y - int(boxHeight*0.8)
                     labelfont = 11
+                    labelColor = 'black'
+                    
                 else:
                     labelYPos = int(y - 0.8 * boxHeight + boxHeight)
+                    labelColor = blackOrWhite(orf.color)
+                    
 
 
                 numberYPos = y + boxHeight
@@ -385,7 +401,7 @@ class ORFDrawer(object):
                 if orf.label:  # and labelXPos > labelXEnd:
 
                     textLabel = ET.Element('text', x=str(labelXPos), y=str(labelYPos),
-                            fill='black', style='font-family:Sans-Serif;font-size:'
+                            fill=labelColor, style='font-family:Sans-Serif;font-size:'
                             + str(labelfont) + 'px;text-anchor:middle')
                     textLabel.text = orf.accession
 
@@ -538,19 +554,6 @@ class ORFDrawer(object):
         # Draw several domain architure in single SVG
         for j in range(len(self.results)):
             
-            # specieid = self.source[j]
-            # linkAddress = 'http://www.ncbi.nlm.nih.gov/nuccore/{0}'
-            # link = ET.Element('a')
-            # link.attrib['xlink:href'] = linkAddress.format(specieid)
-            # text = ET.Element('text', x=str(fontSize),
-            #                   y=str(int(y+boxHeight/2)),
-            #                   fill='black',
-            #                   style='font-family:Sans-Serif;font-weight:bold;font-size:16px;text-anchor:left;dominant-baseline:bottom'
-            #                   )
-            # text.text = self.organismDic[j]
-            # text.attrib['id'] = specieid
-            # link.append(text)
-            # doc.append(link)
             specie = self.results[j]
             
             for i in range(len(clusters)):
