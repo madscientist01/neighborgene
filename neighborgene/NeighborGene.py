@@ -255,9 +255,18 @@ class NeighborGene(object):
 
         n=1
         self.clusters=clusters
-        color = ColorCycler(initColor=30)    
+        color = ColorCycler(initColor=30) 
+        if len(self.clusters)<10:
+            formatText = "Cluster {num:01d}"
+        elif len(self.clusters)<100:
+            formatText = "Cluster {num:02d}"
+        elif len(self.clusters)<1000:
+            formatText = "Cluster {num:03d}"
+        else:
+            formatText = "Cluster {num:04d}"
+
         for cluster in self.clusters:
-            clusterName = "Cluster {num:02d}".format(num=n)
+            clusterName = formatText.format(num=n)
             clusterColor = color.getColor(clusterName)
             self.clusterNames.append(clusterName)
             self.clusterColors.append(clusterColor)
@@ -309,12 +318,21 @@ class NeighborGene(object):
             print "Generating Directory {0}. All of representive cluster files will be saved there.".format(clusterDir)
             os.mkdir(clusterDir)
         
+        if len(self.clusters)<10:
+            formatText = "{num:01d}"
+        elif len(self.clusters)<100:
+            formatText = "{num:02d}"
+        elif len(self.clusters)<1000:
+            formatText = "{num:03d}"
+        else:
+            formatText = "{num:04d}"
+
         for i in range(len(self.clusters)):
             fileList = []
             [fileList.append(self.path+member+".fasta") for member in self.clusters[i]]
-            combinedFastaName = self.path+"Cluster{num:03d}.fasta".format(num=i+1)
+            combinedFastaName = self.path+"Cluster"+formatText.format(num=i+1)+".fasta"                                                            
             makeMultiFasta(fileList, combinedFastaName)
-            saveName = clusterDir+"/ClusterRep{num:03d}.fasta".format(num=i+1)
+            saveName = clusterDir+"/ClusterRep"+formatText.format(num=i+1)+".fasta"
             extractRepresentive(combinedFastaName,saveName,overwrite=False)
             representiveFASTA.append(saveName)
         
@@ -483,8 +501,8 @@ class NeighborGene(object):
                             path = self.path,
                             standardDirection = '+'
                             )  
-        orfdraw.drawSVG()
-        (svgFileNames, svgContent)=orfdraw.drawMultiSVG()      
+        # orfdraw.drawSVG()
+        (svgFileNames, svgContent, svgLabels)=orfdraw.drawMultiSVG()      
         #
         # Table Generation
         #
@@ -493,11 +511,13 @@ class NeighborGene(object):
         svgList = []
         for i in range(len(self.dataList)):
             svg = {"id":self.sourceList[i],
-                   "content":svgContent[i]
+                   "content":svgContent[i],
+                   "label":svgLabels[i]
                  }
             svgList.append(svg)
 
-        svg2=orfdraw.drawClusterTable(self.clusters,self.clusterNames,self.clusterColors)     
+        clusterTableSVG=orfdraw.drawClusterTable(self.clusters,self.clusterNames,self.clusterColors)     
+        clusterTableLabel=orfdraw.drawClusterLabel(self.clusters,self.clusterNames)
         link = "<a href='http://www.ncbi.nlm.nih.gov/protein/{0}?report=genpept'>{1}</a>"   
         clusterlink = "<a id='{0}' name='{0}'>{0}</a>"
         annotationLink = "<a href='http://pfam.sanger.ac.uk/family/{0}'>{1}</a>"
@@ -518,16 +538,27 @@ class NeighborGene(object):
             clusterName = clusterlink.format(clust)
             clusterMemberNo = len(clusters[i])
             desc = []
+            d = []
+            others=[]
+            no=1
             for member in clusters[i]:
-                desc.append(link.format(member,descriptions[member]))      
+                if descriptions[member] in d:
+                    others.append(link.format(member,int(no)))
+                    no+=1
+                else:
+                    d.append(descriptions[member])
+                    desc.append(link.format(member,descriptions[member]))      
             pfam = []
             for (pfamid, pfamdesc) in self.annotations[i].items():
                 pfam.append(annotationLink.format(pfamid,pfamdesc))
 
             tableDescriptions = ' , '.join(desc)
+            if len(others)>0:
+                tableDescriptions = tableDescriptions+", others("+",".join(others)+")"
             annotationDescriptions = " ,".join(pfam)
             cluster =  {
                         "clusterName":clusterName,
+                        "clust":clust,
                         "clusterMemberNo":clusterMemberNo,
                         "annotationDescriptions":annotationDescriptions,
                         "tableDescriptions":tableDescriptions
@@ -540,10 +571,11 @@ class NeighborGene(object):
         params = {
                     "filename":self.fastaseq,
                     "searchdb":self.annotationdb,
-                    "clustering":self.clusteringMode 
+                    "clustering":self.clusteringMode,
+                    "standardCluster":standardCluster.replace(' ','')
         }
         
-        t = template.render(params = params, headers = headers, clusters=clusterInfo, svgList = svgList, svg2 = svg2)
+        t = template.render(params = params, headers = headers, clusters=clusterInfo, svgList = svgList, clusterTableSVG = clusterTableSVG, clusterTableLabel = clusterTableLabel)
         f = open(self.path + self.outputFile, 'w')
         f.write(t)
         f.close()
