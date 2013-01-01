@@ -13,15 +13,13 @@ from abstractsequenceobject import AbstractSequenceObject
 import subprocess
 import os
 import datetime
-import re
 import sys
 import argparse
 import jinja2
 import SimpleHTTPServer
 import SocketServer
 import webbrowser
-
-
+import re
 
 class HHblits(AbstractSequenceObject):
 
@@ -172,17 +170,15 @@ class HHblits(AbstractSequenceObject):
                     self.path + 'temp.a3m',
                     '-n',
                     '1',
-                    '-E',
-                    str(self.cutoff),
                     '-e',
-                    str(self.cutoff),
-                    '-cov',
-                    '50',
-                    '-cpu',
-                    str(self.cpu),
+                    self.cutoff,
+                    '-E',
+                    self.cutoff
+
                     ], stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
                 print 'Second pass of HHblits'
+                print p_stdout
 
                 #
                 # choice of db (PDB, pfam, uniprot20, nr20, scop) will be searched with generated a3m alignment
@@ -206,24 +202,20 @@ class HHblits(AbstractSequenceObject):
                     self.outputAlignFile,
                     '-n',
                     str(self.iteration),
-                    '-E',
-                    str(self.cutoff),
                     '-e',
-                    str(self.cutoff),
-                    '-cov',
-                    '50',
-                    '-cpu',
-                    str(self.cpu),
+                    self.cutoff,
+                    '-E',
+                    self.cutoff
+                    
                     ], stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
-
+                print p_stdout
             #
             # a3m alignment was converted as fasta using reformat.pl scripts in
             # HHSUITE packages
             #
 
             if not os.path.exists(self.outputAlignFile) or self.overwrite:
-                print "Reformat"
                 p = subprocess.Popen(['reformat.pl', 'a3m', 'fas',
                         self.outputAlignFile, self.outputAlignFileFASTA],
                         stdout=subprocess.PIPE)
@@ -472,7 +464,6 @@ def main(results):
     # html rendering and save into HTML file.
     outFileName = "out.html"
     time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
-    print time
     print os.path.basename(hhblits.outputAlignFile)
     t = template.render(results= results, time = time, headers=headers, 
                         hits=hhblits.features['hhblits'], hitmap=hitmap, 
