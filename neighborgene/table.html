@@ -1,8 +1,11 @@
 <!DOCTYPE html>
+
+
 <html>
     <head>
-        <title>List</title>
+        <title>{{results.file}}</title>
         <meta charset='utf-8'>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
     <script type="text/javascript" charset="utf8" src="{0}"></script>
 
@@ -29,7 +32,7 @@
                      ]                                    
                     });
                   var oTable = $('#listtable').dataTable();
-                oTable.fnSort( [ [2,'asc'], [3,'asc'] ] );
+                oTable.fnSort( [ [5,'desc'], [4,'desc'] ] );
         });
         </script>
                   
@@ -98,8 +101,43 @@
             } 
             </style>
         <body>
+        {% macro labeling (field,color) %}
+                {% if color == "red" or color == "crimson" %} 
+                <span class="label label-important">
+                {% elif color == "orange" or color == "yellow" %} 
+                <span class="label label-warning">
+                {% elif color == "lawngreen" or color == "green" %} 
+                <span class="label label-success">
+                {% elif color == "blue" or color == "violet" %} 
+                <span class="label label-info">
+                {% else %}
+                <span class="label">
+                {% endif %}
+                {{ field}}
+                </span>
+        {% endmacro %}
         <div class=row>
+            <div class="navbar navbar-inverse navbar-fixed-top">
+              <div class="navbar-inner">
+                <div class="container-fluid">
+                  <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                  </a>
+                  <a class="brand" href="#hhblits">HHblits</a>
+                  <div class="nav-collapse collapse">
+                    <ul class="nav">
+                      <li class="active"><a href="#predictions">Predictions</a></li>
+                      <li><a href="#hits">Hit Distributions</a></li>
+                      <li><a href="#alignment">Alignmnet</a></li>
+                    </ul>
+                  </div><!--/.nav-collapse -->
+                </div>
+              </div>
+            </div>
             <div class="hero-unit">
+                <a name="hhblits" id ="hhblits"></a>
                 <h2>HHblits search for {{results.file}}</h2>
                 <p>Database searched  <span class="label label-info">{{results.db}}</span>
                    E-Value Cutoff <span class="label label-info">{{results.evalue}}</span>
@@ -113,6 +151,7 @@
         <div class=span1>
         </div>
         <div class=span11>
+            <a name="predictions" id ="predictions"></a>
             <table id='listtable' class='table table-bordered'>
             <thead>
                 <tr>
@@ -134,13 +173,13 @@
                         <a href="#{{hit.name}}">{{hit.description}};{{hit.description2}}</a>
                     </td>
                     <td>
-                        {{hit.evalue}}
+                        {{ hit.evalue }}
                     </td>
                     <td>
-                        {{hit.score}}
+                        {{ hit.score}}
                     </td>
                     <td>
-                        {{hit.probability}}
+                        {{hit.probability }}
                     </td>
                     <td>
                         {{hit.alignedCols}}
@@ -155,7 +194,7 @@
         </div>
         </div>
         <div class=row>
-            
+            <a name="hits" id ="hits"></a>
             <div class=span11>
             {{hitmap}}
             </div>
@@ -163,6 +202,7 @@
         <div>
         {% for hit in hits %}
         <div class=row>
+        <a name="alignment" id ="alignment"></a>
         <div class=span1>
         </div>
         <div class=span3>
@@ -172,33 +212,9 @@
                 <h5>{{hit.description}}</h5>
                 <h5><em>{{hit.specie}}</em></h5>
                 Probability
-                {% if hit.color == "red" or hit.color == "crimson" %} 
-                <span class="label label-important">
-                {% elif hit.color == "orange" or hit.color == "yellow" %} 
-                <span class="label label-warning">
-                {% elif hit.color == "lawngreen" or hit.color == "green" %} 
-                <span class="label label-success">
-                {% elif hit.color == "blue" or hit.color == "violet" %} 
-                <span class="label label-info">
-                {% else %}
-                <span class="label">
-                {% endif %}
-                {{hit.probability}}%
-                </span>
+                {{ labeling (hit.probability, hit.color) }}
                 E-value 
-                {% if hit.color == "red" or hit.color == "crimson" %} 
-                <span class="label label-important">
-                {% elif hit.color == "orange" or hit.color == "yellow" %} 
-                <span class="label label-warning">
-                {% elif hit.color == "lawngreen" or hit.color == "green" %} 
-                <span class="label label-success">
-                {% elif hit.color == "blue" or hit.color == "violet" %} 
-                <span class="label label-info">
-                {% else %}
-                <span class="label">
-                {% endif %}
-                {{hit.evalue}}
-                </span><br>
+                {{ labeling (hit.evalue, hit.color) }}<br>
                 Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span>
             </div>
         </div>

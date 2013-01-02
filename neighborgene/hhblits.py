@@ -96,7 +96,7 @@ class HHblits(AbstractSequenceObject):
                 extra = {}
         if db == 'pdb':
             matched = \
-                re.match('(\S{4})_(\S) ([A-Za-z0-9,/\+:\.\-\(\) ]+); ([A-Za-z0-9,/\.\(\)\+:\- ]+);(.*)\{(.*)\}'
+                re.match('(\S{4})_(\S) ([A-Za-z0-9_,\'/\+:\.\-\(\) ]+); ([A-Za-z0-9,_/\'\.\(\)\+:\- ]+);(.*)\{(.*)\}'
                          , name)
             if matched:
                 outname = matched.group(1).upper()
@@ -169,17 +169,32 @@ class HHblits(AbstractSequenceObject):
                     '-oa3m',
                     self.path + 'temp.a3m',
                     '-n',
-                    '1',
-                    '-e',
-                    self.cutoff,
-                    '-E',
-                    self.cutoff
+                    '1'
+                    ], stdout=subprocess.PIPE)
 
+                p_stdout = p.stdout.read()
+                print 'Second pass of HHblits'  
+                p = subprocess.Popen([
+                    'hhblits',
+                    '-d',
+                    self.dbDictionary['uniprot'],
+                    '-addss',
+                    '-psipred',
+                    self.psipredLocation,
+                    '-psipred_data',
+                    self.psipredDataLocation,
+                    '-i',
+                    self.path+'temp.a3m',
+                    '-oa3m',
+                    self.path +'temp2.a3m',
+                    '-n',
+                    str(self.iteration),
+                    '-norealign',
+                    '-maxfilt',
+                    '30000'
                     ], stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
-                print 'Second pass of HHblits'
-                print p_stdout
-
+                print 'Third pass of HHblits'
                 #
                 # choice of db (PDB, pfam, uniprot20, nr20, scop) will be searched with generated a3m alignment
                 # from the previous HHblit step.
@@ -197,20 +212,19 @@ class HHblits(AbstractSequenceObject):
                     '-psipred_data',
                     self.psipredDataLocation,
                     '-i',
-                    self.path + 'temp.a3m',
+                    self.path + 'temp2.a3m',
                     '-oa3m',
                     self.outputAlignFile,
                     '-n',
                     str(self.iteration),
                     '-e',
-                    self.cutoff,
+                    str(self.cutoff),
                     '-E',
-                    self.cutoff
-                    
+                    str(self.cutoff)
+
                     ], stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
-                print p_stdout
-            #
+              
             # a3m alignment was converted as fasta using reformat.pl scripts in
             # HHSUITE packages
             #

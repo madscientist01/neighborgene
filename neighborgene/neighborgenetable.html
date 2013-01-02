@@ -23,7 +23,8 @@
            
                 $('#listtable').dataTable({
                     "sDom": "<'row'<'span8'l>r>t<'row'<'span8'i><'span8'p>>",
-                     "iDisplayLength": 50,
+                     "aLengthMenu": [[25, 50, 100, 200, -1], [25, 50, 100, 200, "All"]],
+                     "iDisplayLength": -1,
                      "aoColumnDefs": [
                       { "sWidth": "60px", "aTargets": [ 0 ] },
                      { "sWidth": "20px", "aTargets": [ 1 ] },           
@@ -102,6 +103,26 @@
                     <td>
                 {% endif %}
         {% endmacro %}
+        <div class="navbar navbar-inverse navbar-fixed-top">
+          <div class="navbar-inner">
+            <div class="container-fluid">
+              <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </a>
+              <a class="brand" href="#neighborgene">NeighborGene</a>
+              <div class="nav-collapse collapse">
+                <ul class="nav">
+                  <li class="active"><a href="#annotations">Gene Annotations</a></li>
+                  <li><a href="#clusters">Cluster Distribition</a></li>
+                  <li><a href="#orf">ORF Map</a></li>
+                </ul>
+              </div><!--/.nav-collapse -->
+            </div>
+          </div>
+        </div>
+        <a name="neighborgene" id ="neighborgene"></a>
         <div class=row>
             <div class="hero-unit">
                 <h2>NeighborGene search for {{params['filename']}}</h2>
@@ -115,6 +136,7 @@
         </div>
         <div class=span11>
             <table id='listtable' class='table table-bordered'>
+            <a name="annotations" id ="annotations"></a>
             <thead>
                 <tr>
                     {% for name in headers %}
@@ -144,29 +166,31 @@
         </div>
         </div>
         <div class=row>
-        <div class="span4">
-            {{ clusterTableLabel }}
-        </div>
-        <div class="scrollable">
-            {{ clusterTableSVG }}
-        </div>    
+            <a name="clusters" id ="clusters"></a>
+            <div class="span4">
+                {{ clusterTableLabel }}
+            </div>
+            <div class="scrollable">
+                {{ clusterTableSVG }}
+            </div>    
         </div>
         
         <div class=row>
-        <div class="span4">
-           {% for svg in svgList %}
-            <div>
-            {{svg['label']}}
+            <a name="orf" id ="orf"></a>
+            <div class="span4">
+               {% for svg in svgList %}
+                <div>
+                {{svg['label']}}
+                </div>
+                {% endfor %} 
             </div>
-            {% endfor %} 
-        </div>
-        <div class="scrollable">
-        {% for svg in svgList %}
-            <div class="domain" id="{{svg['id']}}">
-            {{svg['content']}}
-            </div>
-        {% endfor %}
-        </div>    
+            <div class="scrollable">
+            {% for svg in svgList %}
+                <div class="domain" id="{{svg['id']}}">
+                {{svg['content']}}
+                </div>
+            {% endfor %}
+            </div>    
         </div>
 
 

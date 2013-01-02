@@ -306,7 +306,6 @@ class ORFDrawer(object):
         orfs.sort(key = attrgetter('start'))
         for orf in orfs:
             if not orf.exclude:
-                print orf.name, orf.color
                 color = orf.color
                 if orf.border:
                     if orf.accession ==self.standardCluster:
@@ -409,8 +408,9 @@ class ORFDrawer(object):
                     textLabel.text = orf.accession
 
                     if orf.link:
+                        clusterlink = self.linkAddress+'#{0}'
                         link = ET.Element('a')
-                        link.attrib['xlink:href'] = orf.link
+                        link.attrib['xlink:href'] =  clusterlink.format(orf.accession.replace(" ", ""))
                         link.append(textLabel)
                         doc.append(link)
                     else:
@@ -514,9 +514,9 @@ class ORFDrawer(object):
                 orfLength = orf.end - orf.start
                 if not orf.accession in clusterLengthMax:
                     clusterLengthMax[orf.accession]=orfLength
-                elif length>clusterLengthMax[orf.accession]:
+                elif orfLength>clusterLengthMax[orf.accession]:
                     clusterLengthMax[orf.accession]=orfLength
-
+               
         y = 70
         rightMargin = 100
         fontSize = 16
@@ -566,6 +566,8 @@ class ORFDrawer(object):
                 for orf in specie:
                     if orf.accession == clusterName:
                         ratio = float(orf.end-orf.start)/float(clusterLengthMax[orf.accession])
+                        # if ratio>1:
+                        #     print clusterName, ratio, orf.end-orf.start, clusterLengthMax[orf.accession], orf.accession
                         if orf.border:
                             if orf.accession ==self.standardCluster:
                                 border = ';stroke-width:3;stroke:red'

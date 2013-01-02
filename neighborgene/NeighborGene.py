@@ -332,7 +332,14 @@ class NeighborGene(object):
 
     def run(self):
         '''
-        Main Pipeline
+        Main Pipeline of NeighborGene.py
+        1. Using given FASTA file (self.queryFASTA), run Phmmer against sequence db(self.fastaseq) to extract candidate list
+        2. Generate HMM with initial hit from Phmmer (hmmbuild in HMMER3.0) and run hmmSearch
+        3. Using range query of mySQL, extract ORF located between upperBound (bp) and lowerBound location
+        4. Using FASTA record fetched from mySQL, extract portions of FASTA sequences using esl-sFetch.
+        5. Extracted sequence will be clustered using Phmmer (sensitive to low sequence homology, but extremely slow) or CD-HIT 
+        6. Representive sequence from the cluster is annotated with Phmmer search against Pfam Database 
+        7. Table of cluster and cluster diagram and ORF distributions will be drawn as SVG and saved as HTML
         '''
         db = self.annotationdb
         upperBound =10000
@@ -396,7 +403,6 @@ class NeighborGene(object):
             c.execute('SELECT gff.organism, gff.start, gff.end, gff.direction, gff.protein,organism.organismName FROM gff, organism WHERE gff.organism=organism.organism and protein=%s',t)
             for row in c.fetchall():
                 (organism, start, end, direction, id,organismName) = row
-                print row
                 # search ORF located between lowerbound (bp) < gene of intereste < upperbound(bp)
                 searchStart = start - lowerBound
                 searchEnd = end + upperBound
@@ -443,28 +449,29 @@ class NeighborGene(object):
                 self.endDic.append(end)
                 self.lengthDic.append(length)
                 self.organismDic.append(organismName)
-                #
-                # extract FASTA file based on the refseq id from self.fastaseq (FASTA database)
-                #
+        #
+        # extract FASTA file based on the refseq id from self.fastaseq (FASTA database) using esl-sfetch
+        #
+
         c.close()
         conn.close()
         extractlist = self.path+'extractlist.txt'
         f=open(extractlist,'w')
         f.writelines(accessions)
         f.close()
-
         (refseqs, descriptions,fileNames)=esl_sfetch(self.fastaseq, self.path, extractlist, self.path+tempFile)
                     
         allFiles+=fileNames.values()
         for i in range(len(self.dataList)):
-            (organismName, organism, start, end, length, orfs) = self.dataList[i]
+            orfs = self.dataList[i][5]
             for orf in orfs:
                 orf.description = descriptions[orf.name]
                 orf.file = fileNames[orf.name]
-                 
-       # Concatenate all of hit as single mutifasta
-       #
-    
+       
+        #
+        # Clustering with phmmer or CD-Hit
+        #
+
         if self.clusteringMode =="phmmer":
             phmmer = PhmmerSearch(file=self.path+tempFile,
                                   db=self.path+tempFile,
@@ -479,19 +486,24 @@ class NeighborGene(object):
                                overwrite=self.overwrite)
             cdhit.runLocal()
             clusters = cdhit.clusters
-
+        #
+        # Inject clustering info into self.dataList
+        #
         standardCluster = self.clusterInfoInjection(clusters,originalSearchAccession)
         self.clusterHMMscan()
 
         # draw results
+        # Sort self.dataList based on the name of organism
+        #
         self.dataList.sort(key=operator.itemgetter(0))
         orfdraw = ORFDrawer(outputSVG=self.path+self.outputFile+".svg", 
+                            outputHTML=self.path+self.outputFile,
                             results=self.dataList,
                             startDic=self.startDic,
                             endDic=self.endDic,
                             lengthDic=self.lengthDic,
                             organismDic=self.organismDic,
-                            linkAddress=linkFormat.format(dataFile),
+                            linkAddress=linkFormat.format(self.path+dataFile),
                             standardCluster = standardCluster,
                             source=self.sourceList,
                             path = self.path,
@@ -500,13 +512,12 @@ class NeighborGene(object):
         # orfdraw.drawSVG()
         (svgFileNames, svgContent, svgLabels)=orfdraw.drawMultiSVG()      
         #
-        # Table Generation
-        #
-      
-        
+        # Table Generation using Jinja2
+        #  
         svgList = []
+
         for i in range(len(self.dataList)):
-            (organismName,organism,start,end,length, orfs) = self.dataList[i]
+            organism = self.dataList[i][1]
             svg = {"id":organism,
                    "content":svgContent[i],
                    "label":svgLabels[i]
@@ -518,19 +529,18 @@ class NeighborGene(object):
         link = "<a href='http://www.ncbi.nlm.nih.gov/protein/{0}?report=genpept'>{1}</a>"   
         clusterlink = "<a id='{0}' name='{0}'>{0}</a>"
         annotationLink = "<a href='http://pfam.sanger.ac.uk/family/{0}'>{1}</a>"
-       
         jinja_environment = \
         jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
         template = jinja_environment.get_template('neighborgenetable.html')
 
-    # header for the hits information table
+        # header for the hits information table
         headers = ['Cluster', '#','Pfam Hits', 'Descriptions']
         
-    # html rendering and save into HTML file.
-
+        # html rendering and save into HTML file.
         clusterInfo = []
-
+        clusterWithoutAnnotation = []
         for i in range(len(clusters)):
+
             clust = self.clusterNames[i].replace(" ","")
             clusterName = clusterlink.format(clust)
             clusterMemberNo = len(clusters[i])
@@ -538,6 +548,9 @@ class NeighborGene(object):
             d = []
             others=[]
             no=1
+            #
+            # Clean up Pfam annotation and Descriptions
+            #
             for member in clusters[i]:
                 if descriptions[member] in d:
                     others.append(link.format(member,int(no)))
@@ -546,6 +559,7 @@ class NeighborGene(object):
                     d.append(descriptions[member])
                     desc.append(link.format(member,descriptions[member]))      
             pfam = []
+
             for (pfamid, pfamdesc) in self.annotations[i].items():
                 pfam.append(annotationLink.format(pfamid,pfamdesc))
 
@@ -553,6 +567,9 @@ class NeighborGene(object):
             if len(others)>0:
                 tableDescriptions = tableDescriptions+", others("+",".join(others)+")"
             annotationDescriptions = " ,".join(pfam)
+            if len(annotationDescriptions)==0:
+                clusterWithoutAnnotation.append(clust)
+
             cluster =  {
                         "clusterName":clusterName,
                         "clust":clust,
@@ -562,6 +579,8 @@ class NeighborGene(object):
                         }
             clusterInfo.append(cluster)
         
+        for line in clusterWithoutAnnotation:
+            print line
         # time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
         # print os.path.basename(hhblits.outputAlignFile)
 
@@ -572,12 +591,15 @@ class NeighborGene(object):
                     "standardCluster":standardCluster.replace(' ','')
         }
         
+        #
+        # Render HTML Report and save it.
+        #
+
         t = template.render(params = params, headers = headers, clusters=clusterInfo, svgList = svgList, clusterTableSVG = clusterTableSVG, clusterTableLabel = clusterTableLabel)
         f = open(self.path + self.outputFile, 'w')
         f.write(t)
         f.close()
       
-
         # run simpleHTTPServer and load html report in default Browser
         Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
         httpd = SocketServer.TCPServer(("", PORT), Handler)
@@ -587,6 +609,7 @@ class NeighborGene(object):
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-q',
