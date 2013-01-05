@@ -203,7 +203,6 @@
         {% for hit in hits %}
         <div class=row>
         <a name="alignment" id ="alignment"></a>
-        <div class=span1>
         </div>
         <div class=span3>
             <a name="{{hit.name}}" id="{{hit.name}}"></a>
@@ -215,10 +214,15 @@
                 {{ labeling (hit.probability, hit.color) }}
                 E-value 
                 {{ labeling (hit.evalue, hit.color) }}<br>
-                Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span>
+                Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span><br>
+                
             </div>
+
         </div>
-        <div class=span8>
+        <div class=span2>
+            <img src="http://www.rcsb.org/pdb/images/{{hit.name|lower}}_bio_r_500.jpg" width=150>
+        </div>
+        <div class=span7>
             {{hit.svg}}
         </div>
     </div>

@@ -249,7 +249,7 @@ class HHBlitsDrawer(object):
         '''
 
         x = 50
-        y = 70
+        y = 10
         leftMargin = 100
         rightMargin = 100
         fontSize = 16
@@ -265,9 +265,8 @@ class HHBlitsDrawer(object):
         # If protein name width is bigger than leftMargin, wrote Label at top of proteins (self.titlemode=True)
 
         yDelta = 30
-
-        canvasHeight = (len(self.hhblitResult.features['hhblits']) - 1) \
-            * yDelta
+        canvasHeight = (len(self.hhblitResult.features['hhblits'])+1) \
+            * yDelta+x
 
         # doc is elementTree container for svg
 
@@ -500,7 +499,7 @@ class HHBlitsDrawer(object):
 
         yStart = 30
         y = yStart
-        leftMargin = 150
+        leftMargin = 130
         fontSize = 14
         columnWidth = 60
         canvasWidth = 800

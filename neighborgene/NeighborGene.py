@@ -17,11 +17,13 @@ from phmmerclust import PhmmerSearch
 from colorcycler import ColorCycler
 from hmmscan import Hmmer
 from cdhitcluster import CDHitSearch
+from usearchcluster import usearch
 from collections import defaultdict
 import subprocess
 import SimpleHTTPServer
 import SocketServer
 import webbrowser
+import shutil
 
 def list_has_duplicate_items(L):
     return len(L) > len(set(L))
@@ -207,6 +209,7 @@ def extractRepresentive(multifasta,saveName,overwrite=False):
             buffers[refseq]=buffer 
             length[refseq]=len(''.join(buffer))
         longest = max(length, key=length.get)
+        f.close
         fw = open(saveName, 'w')
         fw.writelines(buffers[longest])
         fw.close
@@ -232,8 +235,8 @@ class NeighborGene(object):
             self.path = os.path.splitext(basename)[0]
         else:
             self.path = ""
-        if not self.clusteringMode in ['cdhit', 'phmmer']:
-            self.clusteringMode = 'cdhit'
+        if not self.clusteringMode in ['cdhit', 'phmmer', 'uclust']:
+            self.clusteringMode = 'uclust'
         self.clusters = []
         self.dataList = []
         self.clusterNames = []
@@ -249,9 +252,10 @@ class NeighborGene(object):
     def clusterInfoInjection(self,clusters,originalSearchAccession):
         '''
         Afer clustering using phmmer, cluster informations are injected in this method.
+        Return Cluster Name of original Search and statistics for ORF length
         '''
         clusterNo ={}
-
+        clusterORFLengths = {}
         n=1
         self.clusters=clusters
         color = ColorCycler(initColor=30) 
@@ -281,9 +285,14 @@ class NeighborGene(object):
                         if member == orf.name:
                             orf.accession = clusterName
                             orf.color = clusterColor
+                            cName = clusterName.replace(" ","")
+                            if not cName in clusterORFLengths:
+                                lengths = []
+                                clusterORFLengths[cName]=lengths
+                            clusterORFLengths[cName].append(orf.end-orf.start)
             n+=1
 
-        return (max(clusterNo,key=clusterNo.get))
+        return (max(clusterNo,key=clusterNo.get),clusterORFLengths)
 
     def clusterHMMscan(self):
         '''
@@ -480,18 +489,24 @@ class NeighborGene(object):
                                   overwrite=self.overwrite)
             phmmer.clustering()
             clusters=phmmer.clusters
-        else:
+        elif self.clusteringMode == "cdhit":
             cdhit =CDHitSearch(file=self.path+tempFile,
                                thershold=0.4, 
                                overwrite=self.overwrite)
             cdhit.runLocal()
             clusters = cdhit.clusters
+        else:
+            u = usearch(file=self.path+tempFile,
+                thershold=0.4, 
+                overwrite=self.overwrite)
+            u.runLocal()
+            clusters = u.clusters
+
         #
         # Inject clustering info into self.dataList
         #
-        standardCluster = self.clusterInfoInjection(clusters,originalSearchAccession)
+        standardCluster,clusterORFLengths= self.clusterInfoInjection(clusters,originalSearchAccession)
         self.clusterHMMscan()
-
         # draw results
         # Sort self.dataList based on the name of organism
         #
@@ -534,7 +549,7 @@ class NeighborGene(object):
         template = jinja_environment.get_template('neighborgenetable.html')
 
         # header for the hits information table
-        headers = ['Cluster', '#','Pfam Hits', 'Descriptions']
+        headers = ['Cluster', '#','Pfam Hits', 'Descriptions', 'Amino Acids # (Max, Min)']
         
         # html rendering and save into HTML file.
         clusterInfo = []
@@ -544,6 +559,14 @@ class NeighborGene(object):
             clust = self.clusterNames[i].replace(" ","")
             clusterName = clusterlink.format(clust)
             clusterMemberNo = len(clusters[i])
+            clusterLengthAverage = int (sum(clusterORFLengths[clust])/float(len(clusterORFLengths[clust])))
+            clusterLengthMax = max(clusterORFLengths[clust])
+            clusterLengthMin = min (clusterORFLengths[clust])
+            if clusterLengthAverage !=clusterLengthMax: 
+                clusterStatFormat = "{average} ({max},{min})"
+            else:
+                clusterStatFormat = "{average}"
+
             desc = []
             d = []
             others=[]
@@ -575,20 +598,38 @@ class NeighborGene(object):
                         "clust":clust,
                         "clusterMemberNo":clusterMemberNo,
                         "annotationDescriptions":annotationDescriptions,
-                        "tableDescriptions":tableDescriptions
+                        "tableDescriptions":tableDescriptions,
+                        "clusterStat":clusterStatFormat.format(average=clusterLengthAverage,
+                            max=clusterLengthMax,
+                            min=clusterLengthMin)
                         }
             clusterInfo.append(cluster)
-        
-        for line in clusterWithoutAnnotation:
-            print line
+                
+        unknownClusterDir=self.path+"unknowncluster"
+
+        if not(os.path.isdir(unknownClusterDir)):
+            os.mkdir(unknownClusterDir)
+
+        for singleFile in clusterWithoutAnnotation:
+            try:
+                sourcefile = self.path+"cluster"+"/"+singleFile.replace("Cluster", "ClusterRep")+".fasta"
+                targetfile = unknownClusterDir +"/"+singleFile.replace("Cluster", "ClusterRep")+".fasta"
+                shutil.copy2(sourcefile, targetfile)
+            except Exception, e:
+                print sourcefile, targetfile
+                print "Problem in File Generation {0}".format(e)
+            
+
         # time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
         # print os.path.basename(hhblits.outputAlignFile)
 
         params = {
-                    "filename":self.fastaseq,
+                    "filename":self.queryFasta,
                     "searchdb":self.annotationdb,
-                    "clustering":self.clusteringMode,
-                    "standardCluster":standardCluster.replace(' ','')
+                    "clusterNumber":len(clusters),
+                    "geneNumber": len(extract),
+                    "speciesNumber" : len(self.organismDic),
+                    "standardCluster": standardCluster.replace(" ","")
         }
         
         #
@@ -675,23 +716,19 @@ if __name__ == '__main__':
         help='ignore current running results'
     )
     parser.add_argument(
-        '-p',
-        '--phmmer_clustering',
+        '-c',
+        '--clustering_method',
         action='store_true',
-        dest='phmmerclustering',
-        default=False,
+        dest='method',
+        default='uclust',
         help='Use phmmer clustering (sensitive but much slower than default CD-HIT clustering)',
     )
     results = parser.parse_args() 
-    if results.phmmerclustering:
-        method = 'phmmer'
-    else:
-        method = 'cdhit'   
     neighbor = NeighborGene(score=results.score,
                             overwrite=results.overwrite, 
                             queryfasta=results.file,
                             fastaseq=results.dbseq,
-                            clusteringmode=method, 
+                            clusteringmode=results.method, 
                             annotationdb = results.annodb,
                             outputfile=results.outputfile,
                             linkFormat=results.link,

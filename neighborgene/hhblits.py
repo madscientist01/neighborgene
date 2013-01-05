@@ -1,11 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-#
 # HHblits wrapper
 # MadScientist http://madscientist.wordpress.com
 #
+# The MIT License
 #
+# Copyright (c) 2012 Suk Namgoong (suk.namgoong@gmail.com)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 from hhblitshit import HHblitsHit
 from hhblitdrawer import HHBlitsDrawer
@@ -20,6 +39,7 @@ import SimpleHTTPServer
 import SocketServer
 import webbrowser
 import re
+import glob
 
 class HHblits(AbstractSequenceObject):
 
@@ -45,7 +65,6 @@ class HHblits(AbstractSequenceObject):
             self.path = os.path.splitext(basename)[0] + '_hh'
         else:
             self.path = ''
-
         self.psipred = ''
         self.psipredConf = ''
         self.iteration = kwargs.get('iteration`')
@@ -431,61 +450,70 @@ def main(results):
     '''
     main worker method for the pipeline.
     '''
+    files = results.files
+    if len(files)==0:
+        files = glob.glob("*.fasta")
 
-    hhblits = HHblits(  # define location of HHSUITE DB. Based on the location of actual DB, these should be changed.
-        file=results.file,
-        db=results.db,
-        dbDictionary={'pdb': '/Users/suknamgoongold/hhsuite/db/pdb70_06Oct12',
-                      'uniprot': '/Users/suknamgoongold/hhsuite/db/uniprot20_2012_03',
-                      'pfamA': '/Users/suknamgoongold/hhsuite/db/pfamA_v26.0_06Dec11'
-                      },
-        psipredLocation=results.psipredLocation,
-        psipredDataLocation=results.psipredDataLocation,
-        evalue=results.evalue,
-        iteration=results.iteration,
-        overwrite=results.overwrite,
-        folder=results.folder,
-        )
-    hhblits.runLocal()
+    for singleFile in files:
+        if os.path.exists(singleFile):
+            hhblits = HHblits(  # define location of HHSUITE DB. Based on the location of actual DB, these should be changed.
+                file=singleFile,
+                db=results.db,
+                dbDictionary={'pdb': '/Users/suknamgoongold/hhsuite/db/pdb70_06Oct12',
+                              'uniprot': '/Users/suknamgoongold/hhsuite/db/uniprot20_2012_03',
+                              'pfamA': '/Users/suknamgoongold/hhsuite/db/pfamA_v26.0_06Dec11'
+                              },
+                psipredLocation=results.psipredLocation,
+                psipredDataLocation=results.psipredDataLocation,
+                evalue=results.evalue,
+                iteration=results.iteration,
+                overwrite=results.overwrite,
+                folder=results.folder,
+                )
+            hhblits.runLocal()
 
-    draw = HHBlitsDrawer(hhblitResult=hhblits, outputSVG='hhblits.svg',
-                         fixWidth=True, canvasWidth=1200)
-    hitmap = draw.drawSVG()
-    for hit in hhblits.features['hhblits']:
-        (svgfile, hit.svg) = draw.singleAlignDraw(hit)
+            draw = HHBlitsDrawer(hhblitResult=hhblits, outputSVG='hhblits.svg',
+                                 fixWidth=True, canvasWidth=1200)
+            hitmap = draw.drawSVG()
+            for hit in hhblits.features['hhblits']:
+                (svgfile, hit.svg) = draw.singleAlignDraw(hit)
 
-    #
-    # Table Generation using jinja2
-    #
+            #
+            # Table Generation using jinja2
+            #
 
-    jinja_environment = \
-        jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
-    template = jinja_environment.get_template('table.html')
+            jinja_environment = \
+                jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+            template = jinja_environment.get_template('table.html')
 
-    # header for the hits information table
+            # header for the hits information table
 
-    headers = [
-        'PDB ID',
-        'Resolution(A)',
-        'Description',
-        'e-value',
-        'Score',
-        'Probability',
-        'Aligned Residues',
-        'Identity(%)',
-        ]
+            headers = [
+                'PDB ID',
+                'Resolution(A)',
+                'Description',
+                'e-value',
+                'Score',
+                'Probability',
+                'Aligned Residues',
+                'Identity(%)',
+                ]
 
-    # html rendering and save into HTML file.
-    outFileName = "out.html"
-    time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
-    print os.path.basename(hhblits.outputAlignFile)
-    t = template.render(results= results, time = time, headers=headers, 
-                        hits=hhblits.features['hhblits'], hitmap=hitmap, 
-                        hhrfile = os.path.basename(hhblits.hhrfile), 
-                        alignment=os.path.basename(hhblits.outputAlignFileFASTA))
-    f = open(hhblits.path + outFileName, 'w')
-    f.write(t)
-    f.close()
+            # html rendering and save into HTML file.
+            (name,ext) = os.path.splitext(singleFile)
+            outFileName = name+".html"
+            time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
+            print os.path.basename(hhblits.outputAlignFile)
+            t = template.render(results= results, time = time, headers=headers, 
+                                hits=hhblits.features['hhblits'], hitmap=hitmap, 
+                                hhrfile = os.path.basename(hhblits.hhrfile), 
+                                alignment=os.path.basename(hhblits.outputAlignFileFASTA))
+            f = open(hhblits.path + outFileName, 'w')
+            f.write(t)
+            f.close()
+        else:
+            "{0} is not exist. Skipped.".format(singleFile)
+
     PORT=8000
     Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
     httpd = SocketServer.TCPServer(("", PORT), Handler)
@@ -499,7 +527,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-q', '--query', dest='file',
+    parser.add_argument('-q', '--query', dest='files', default=[], nargs='+',
                         help='file to search')
     parser.add_argument('-d', '--db', dest='db', default='uniprot',
                         help='HHblits DB')
@@ -528,7 +556,5 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--path', dest='path', default='',
                         help='path')
     results = parser.parse_args()
-    if len(results.file) > 0:
-        main(results)
-    else:
-        parser.print_help()
+    main(results)
+    
