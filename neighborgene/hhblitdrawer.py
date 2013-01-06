@@ -248,9 +248,9 @@ class HHBlitsDrawer(object):
         Draw SVG based on the hmmer domaim
         '''
 
-        x = 50
-        y = 10
-        leftMargin = 100
+        x = 0
+        y = 30
+        leftMargin = 60
         rightMargin = 100
         fontSize = 16
         boxHeight = 20
@@ -370,7 +370,6 @@ class HHBlitsDrawer(object):
          Draw Secondary Structure
          Return ElementTree Doc object as SVG container 
         '''
-
         featureLabel = ET.Element('text', x=str(leftMargin - int(len(label) * fontSize * 0.5)),
                                   y=str(y + 5),
                                   style='font-family:Sans-Serif;font-weight:bold;font-size:'
@@ -478,19 +477,80 @@ class HHBlitsDrawer(object):
                 y += yDelta
         return doc
 
-    def sequencesDraw(self):
+    def querySequenceDraw(self):
+        '''
+            Draw Single Sequence and Domain, Secondary Structure.
+        '''
 
-        sequenceDetailFileNames = {}
-        sequenceDetailSVGContent = {}
-        for hmmer in self.hhblitResult:
-            defs = self.colorDef()
-            (svgFileName, svgContent) = self.singleSequenceDraw(hmmer,
-                    defs)
-            sequenceDetailFileNames[hmmer.name] = svgFileName
-            sequenceDetailSVGContent[hmmer.name] = \
-                ET.tostring(svgContent)
+        yStart = 30
+        y = yStart
+        leftMargin = 130
+        fontSize = 14
+        columnWidth = 60
+        canvasWidth = 800
+        yDelta = 70
+        yDiff = 15
+        conversionFactor = 0.7
+        name = self.hhblitResult.name
+        svgfilename = name + '.svg'
+        length = len(self.hhblitResult.sequence)
+        canvasHeight = int((length / float(columnWidth) + 1) * yDelta)
 
-        return (sequenceDetailFileNames, sequenceDetailSVGContent)
+        # doc is elementTree container for svg
+
+        doc = ET.Element('svg', width=str(canvasWidth),
+                         height=str(canvasHeight), version='1.2',
+                         xmlns='http://www.w3.org/2000/svg')
+        doc.attrib['xmlns:xlink'] = 'http://www.w3.org/1999/xlink'
+        cursor = 0
+        start = 1
+
+        while cursor < length:
+            (doc, Start) = self.sequenceDraw(
+                start,
+                self.hhblitResult.sequence,
+                self.hhblitResult.sequence,
+                columnWidth,
+                cursor,
+                length,
+                fontSize,
+                doc,
+                y,
+                conversionFactor,
+                self.hhblitResult.name,
+                leftMargin,
+                )
+            if len(self.hhblitResult.psipred) > 0:
+                doc = self.secondaryDraw(
+                    self.hhblitResult.psipred,
+                    columnWidth,
+                    cursor,
+                    length,
+                    fontSize,
+                    doc,
+                    y - yDiff + 3,
+                    conversionFactor,
+                    'SS psipred',
+                    leftMargin,
+                    )
+            cursor += columnWidth
+            y += yDelta
+            start += 1
+
+        name = self.hhblitResult.sequence[cursor:length]
+        aminoacids = ET.Element('text', x=str(leftMargin), y=str(y),
+                                fill='black',
+                                style='font-family:Courier;font-size:'
+                                + str(fontSize)
+                                + 'px;text-anchor:left;dominant-baseline:middle'
+                                )
+        aminoacids.text = name
+        doc.append(aminoacids)
+
+        self.saveSVG(svgfilename, doc)
+        return (svgfilename, ET.tostring(doc))
+   
+
 
     def singleAlignDraw(self, hit):
         '''
@@ -596,7 +656,7 @@ class HHBlitsDrawer(object):
         doc.append(aminoacids)
 
         self.saveSVG(svgfilename, doc)
-        return (svgfilename, ET.tostring(doc))
+        return (ET.tostring(doc))
 
     def sequenceDraw(
         self,
@@ -750,5 +810,8 @@ class HHBlitsDrawer(object):
             color = 'yellow'
 
         return color
+
+
+
 
 

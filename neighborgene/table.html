@@ -33,6 +33,9 @@
                     });
                   var oTable = $('#listtable').dataTable();
                 oTable.fnSort( [ [5,'desc'], [4,'desc'] ] );
+                $(function () {
+                    $('#myTab a:last').tab('show');
+                 })
         });
         </script>
                   
@@ -193,38 +196,71 @@
         </table>
         </div>
         </div>
+
         <div class=row>
-            <a name="hits" id ="hits"></a>
+            <div class=span1>
+            </div>
             <div class=span11>
-            {{hitmap}}
+            <ul class="nav nav-tabs" id="myTab">
+                <li class="active"><a href="#Hit" data-toggle="tab">Hits</a></li>
+                <li><a href="#Seq" data-toggle="tab">Sequence</a></li>
+                <li><a href="#Align" data-toggle="tab">Align</a></li>
+                
+            </ul>
             </div>
         </div>
-        <div>
-        {% for hit in hits %}
-        <div class=row>
-        <a name="alignment" id ="alignment"></a>
-        </div>
-        <div class=span3>
-            <a name="{{hit.name}}" id="{{hit.name}}"></a>
-            <div class="well well-small">
-                <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h3></a>
-                <h5>{{hit.description}}</h5>
-                <h5><em>{{hit.specie}}</em></h5>
-                Probability
-                {{ labeling (hit.probability, hit.color) }}
-                E-value 
-                {{ labeling (hit.evalue, hit.color) }}<br>
-                Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span><br>
-                
+        <div class="tab-content">
+            <div class="tab-pane active" id ="Hit">
+                <div class=row>
+                    <div class=span1>
+                    </div>
+                    <div class=span11>
+                        <a name="hits" id ="hits"></a>
+                        {{hitmap}}
+                    </div>
+                </div>
             </div>
 
+            <div class="tab-pane" id ="Seq">
+                <div class=row>
+                    <div class=span1>
+                    </div>
+                    <div class=span11>
+                        {{sequence}}
+                    </div>
+                </div>           
+            </div>
+            <div class="tab-pane" id ="Align">
+                <div>
+                {% for hit in hits %}
+                <div class=row>
+                <a name="alignment" id ="alignment"></a>
+                </div>
+                <div class=span3>
+                    <a name="{{hit.name}}" id="{{hit.name}}"></a>
+                    <div class="well well-small">
+                        <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h3></a>
+                        <h5>{{hit.description}}</h5>
+                        <h5><em>{{hit.specie}}</em></h5>
+                        Probability
+                        {{ labeling (hit.probability, hit.color) }}
+                        E-value 
+                        {{ labeling (hit.evalue, hit.color) }}<br>
+                        Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span><br>
+                        
+                    </div>
+
+                </div>
+                <div class=span2>
+                    <img src="http://www.rcsb.org/pdb/images/{{hit.name|lower}}_bio_r_500.jpg" width=150>
+                </div>
+                <div class=span7>
+                    {{hit.svg}}
+                </div>
+                {% endfor %}
+                </div>
+            </div>
         </div>
-        <div class=span2>
-            <img src="http://www.rcsb.org/pdb/images/{{hit.name|lower}}_bio_r_500.jpg" width=150>
-        </div>
-        <div class=span7>
-            {{hit.svg}}
-        </div>
-    </div>
-        {% endfor %}
+        
+       
     </body>

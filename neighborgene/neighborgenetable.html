@@ -41,12 +41,6 @@
                 text-align: left;
                 border-collapse: collapse;  
                 }
-                
-             td.conditionalRowColor
-            {
-                background-color:#FFEEEE;
-            }
-
             .scrollable {
             height: 100%;
             overflow: auto;
@@ -92,7 +86,6 @@
             table {
                 clear: both;
             }
-
                 /*
                  * Table
                  */
@@ -104,6 +97,7 @@
 
                 table.dataTable thead th {
                     padding: 3px 18px 3px 10px;
+                    background-color:#DDDDDD;
                     border-bottom: 1px solid black;
                     font-weight: bold;
                     cursor: pointer;
@@ -125,16 +119,16 @@
                     text-align: center;
                 }
 
-                table.dataTable tr.odd { background-color: #EEEEEE; }
+               /* table.dataTable tr.odd { background-color: #DDDDDD; }
                 table.dataTable tr.even { background-color: white; }
 
-                table.dataTable tr.odd td.sorting_1 { background-color: #EEEEEE; }
-                table.dataTable tr.odd td.sorting_2 { background-color: #EEEEEE; }
-                table.dataTable tr.odd td.sorting_3 { background-color: #EEEEEE; }
-                table.dataTable tr.even td.sorting_1 { background-color: #EEEEEE; }
-                table.dataTable tr.even td.sorting_2 { background-color: #EEEEEE; }
-                table.dataTable tr.even td.sorting_3 { background-color: #EEEEEE; }
-
+                table.dataTable tr.odd td.sorting_1 { background-color: #DDDDDD; }
+                table.dataTable tr.odd td.sorting_2 { background-color: #DDDDDD; }
+                table.dataTable tr.odd td.sorting_3 { background-color: #DDDDDD; }
+                table.dataTable tr.even td.sorting_1 { background-color: #DDDDDD; }
+                table.dataTable tr.even td.sorting_2 { background-color: #DDDDDD; }
+                table.dataTable tr.even td.sorting_3 { background-color: #DDDDDD; }
+*/
 
                 /*
                  * Table wrapper
@@ -261,9 +255,6 @@
                     background-color: #99B3FF;
                 }
 
-                /*
-                 * Processing indicator
-                 */
                 .dataTables_processing {
                     position: absolute;
                     top: 50%;
@@ -280,10 +271,6 @@
                     background-color: white;
                 }
 
-
-                /*
-                 * Sorting
-                 */
                 .sorting { background: url('../images/sort_both.png') no-repeat center right; }
                 .sorting_asc { background: url('../images/sort_asc.png') no-repeat center right; }
                 .sorting_desc { background: url('../images/sort_desc.png') no-repeat center right; }
@@ -295,15 +282,9 @@
                 table.dataTable thead td:active {
                     outline: none;
                 }
-
-
-                /*
-                 * Scrolling
-                 */
                 .dataTables_scroll {
                     clear: both;
                 }
-
                 .dataTables_scrollBody {
                     *margin-top: -1px;
                     -webkit-overflow-scrolling: touch;
@@ -313,9 +294,9 @@
         <body>
         {% macro condition (clust) %}
                 {% if clust == params['standardCluster'] %} 
-                    <td class=conditionalRowColor>
+                    <tr class="error">
                 {% else %}
-                    <td>
+                    <tr>
                 {% endif %}
         {% endmacro %}
         <div class="navbar navbar-inverse navbar-fixed-top">
@@ -353,7 +334,7 @@
         <div class=span1>
         </div>
         <div class=span11>
-            <table id='listtable' class='table table-bordered'>
+            <table id='listtable' class='table table-striped table-bordered table-hover'>
             <a name="annotations" id ="annotations"></a>
             <thead>
                 <tr>
@@ -364,20 +345,20 @@
             </thead>
             <tbody>
                 {% for cluster in clusters %}
-                <tr>
-                    {{ condition(cluster['clust']) }}
+                {{ condition(cluster['clust']) }}
+                    <td>
                         {{cluster['clusterName']}}            
                     </td>
-                    {{ condition(cluster['clust']) }}
+                    <td>
                         {{cluster['clusterMemberNo']}}
                     </td>
-                    {{ condition(cluster['clust']) }}
+                    <td>
                        {{cluster['annotationDescriptions']}}
                     </td>
-                     {{ condition(cluster['clust']) }}
+                    <td>
                        {{cluster['tableDescriptions']}}
                     </td>
-                     {{ condition(cluster['clust']) }}
+                    <td>
                        {{cluster['clusterStat']}}
                     </td>                      
                 </tr>
@@ -408,7 +389,7 @@
             <div class="scrollable">
             {% for svg in svgList %}
                 <div class="domain" id="{{svg['id']}}">
-                {{svg['content']}}
+                    {{svg['content']}}
                 </div>
             {% endfor %}
             </div>    

@@ -1,8 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-# HHblits wrapper
-# MadScientist http://madscientist.wordpress.com
+# HHblits (http://toolkit.tuebingen.mpg.de/hhblits) Wrapper and stand alone pipeline similar with HHpred/
+# MadScientist http://madscientist.wordpress.com, https://github.com/madscientist01/neighborgene
 #
 # The MIT License
 #
@@ -25,7 +25,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
+#
 from hhblitshit import HHblitsHit
 from hhblitdrawer import HHBlitsDrawer
 from abstractsequenceobject import AbstractSequenceObject
@@ -104,6 +104,9 @@ class HHblits(AbstractSequenceObject):
             self.features['psipred'].append(hit)
 
     def hitName(self, name):
+        '''
+        Extract pdb informations from hhblit hit
+        '''
         db = self.db
         if db == 'uniprot':
             matched = re.match('\S+\s([A-Za-z0-9\-\+:, ]+)OX=', name)
@@ -244,7 +247,7 @@ class HHblits(AbstractSequenceObject):
                     ], stdout=subprocess.PIPE)
                 p_stdout = p.stdout.read()
               
-            # a3m alignment was converted as fasta using reformat.pl scripts in
+            # a3m alignment is converted as fasta using reformat.pl scripts in
             # HHSUITE packages
             #
 
@@ -407,9 +410,12 @@ class HHblits(AbstractSequenceObject):
                         hhblits.specie = extra['specie']
                     if 'resolution' in extra:
                         hhblits.resolution = extra['resolution']
+                    if 'chain' in extra:
+                        hhblits.chain = extra['chain']
                     if self.db == 'pdb':
                         hhblits.labelLink = \
                             'http://www.rcsb.org/pdb/explore/explore.do?structureId={0}'.format(processedName)
+
                     self.features['hhblits'].append(hhblits)
 
             if os.path.exists(self.outputAlignFile):
@@ -451,6 +457,9 @@ def main(results):
     main worker method for the pipeline.
     '''
     files = results.files
+    pdbDBLocation = '/Users/suknamgoongold/hhsuite/db/pdb70_06Oct12'
+    uniprotDBLocation = '/Users/suknamgoongold/hhsuite/db/uniprot20_2012_03'
+    pfamADBLocation = '/Users/suknamgoongold/hhsuite/db/pfamA_v26.0_06Dec11'
     if len(files)==0:
         files = glob.glob("*.fasta")
 
@@ -459,9 +468,9 @@ def main(results):
             hhblits = HHblits(  # define location of HHSUITE DB. Based on the location of actual DB, these should be changed.
                 file=singleFile,
                 db=results.db,
-                dbDictionary={'pdb': '/Users/suknamgoongold/hhsuite/db/pdb70_06Oct12',
-                              'uniprot': '/Users/suknamgoongold/hhsuite/db/uniprot20_2012_03',
-                              'pfamA': '/Users/suknamgoongold/hhsuite/db/pfamA_v26.0_06Dec11'
+                dbDictionary={'pdb': pdbDBLocation,
+                              'uniprot': uniprotDBLocation,
+                              'pfamA': pfamADBLocation
                               },
                 psipredLocation=results.psipredLocation,
                 psipredDataLocation=results.psipredDataLocation,
@@ -473,11 +482,12 @@ def main(results):
             hhblits.runLocal()
 
             draw = HHBlitsDrawer(hhblitResult=hhblits, outputSVG='hhblits.svg',
-                                 fixWidth=True, canvasWidth=1200)
+                                 fixWidth=True, canvasWidth=1150)
             hitmap = draw.drawSVG()
             for hit in hhblits.features['hhblits']:
                 (svgfile, hit.svg) = draw.singleAlignDraw(hit)
 
+            querySeq = draw.querySequenceDraw()
             #
             # Table Generation using jinja2
             #
@@ -503,8 +513,8 @@ def main(results):
             (name,ext) = os.path.splitext(singleFile)
             outFileName = name+".html"
             time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
-            print os.path.basename(hhblits.outputAlignFile)
-            t = template.render(results= results, time = time, headers=headers, 
+            t = template.render(results= results, time = time, 
+                                headers=headers, sequence = querySeq,
                                 hits=hhblits.features['hhblits'], hitmap=hitmap, 
                                 hhrfile = os.path.basename(hhblits.hhrfile), 
                                 alignment=os.path.basename(hhblits.outputAlignFileFASTA))
