@@ -48,35 +48,24 @@ class Hmmer(AbstractSequenceObject):
         #
         # Exclude overlapped domain. If two domains are overlapped, the one have higher bitscore will be retained
         #
+        hits = self.features['domain']
 
-        if len(self.features['domain']) > 1:
-            for i in range(len(self.features['domain']) - 1):
-                for j in range(i + 1, len(self.features['domain'])):
-                    if not self.features['domain'][i].exclude \
-                        and not self.features['domain'][j].exclude:
-                        if self.features['domain'][i].end \
-                            > self.features['domain'][j].start \
-                            and self.features['domain'][i].end \
-                            < self.features['domain'][j].end:
-                            if self.features['domain'][i].bitscore \
-                                > self.features['domain'][j].bitscore:
-                                self.features['domain'][j].exclude = \
-                                    True
+        if len(hits) > 1:
+            for i in range(len(hits) - 1):
+                for j in range(i + 1, len(hits)):
+                    if not hits[i].exclude and not hits[j].exclude:
+                        if hits[i].end > hits[j].start and hits[i].end < hits[j].end:
+                            if hits[i].score > hits[j].score:
+                                hits[j].exclude = True
                             else:
-                                self.features['domain'][i].exclude = \
-                                    True
+                                hits[i].exclude =True                  
 
-                        if self.features['domain'][j].end \
-                            > self.features['domain'][i].start \
-                            and self.features['domain'][j].end \
-                            < self.features['domain'][i].end:
-                            if self.features['domain'][i].bitscore \
-                                > self.features['domain'][j].bitscore:
-                                self.features['domain'][j].exclude = \
-                                    True
+                        if hits[j].end > hits[i].start and hits[j].end < hits[i].end:
+                            if hits[i].score > hits[j].score :
+                                hits[j].exclude = True
                             else:
-                                self.features['domain'][i].exclude = \
-                                    True
+                                hits[i].exclude = True
+
 
     def runRemote(self):
 
