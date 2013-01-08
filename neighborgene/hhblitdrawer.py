@@ -3,6 +3,7 @@
 #
 # class for the drawing of HHblits results
 #
+# from lxml import etree as ET
 import xml.etree.cElementTree as ET
 import re
 
@@ -265,8 +266,7 @@ class HHBlitsDrawer(object):
         # If protein name width is bigger than leftMargin, wrote Label at top of proteins (self.titlemode=True)
 
         yDelta = 30
-        canvasHeight = (len(self.hhblitResult.features['hhblits'])+1) \
-            * yDelta+x
+        canvasHeight = (len(self.hhblitResult.features['hhblits'])+2) * yDelta
 
         # doc is elementTree container for svg
 
@@ -380,106 +380,105 @@ class HHBlitsDrawer(object):
         doc.append(featureLabel)
 
         for hit in hits:
-            if not hit.exclude:
-                if hit.color:
-                    color = hit.color
+            if hit.color:
+                color = hit.color
+            else:
+                color = 'blue'
+            if hit.border:
+                border = ';stroke-width:1;stroke:black'
+            else:
+                border = ''
+            if hit.gradient:
+                style = 'fill:url(#' + 'gradient_' + hit.color \
+                    + ')' + border
+            else:
+                style = 'fill:' + color + border
+            xPos = leftMargin + hit.queryStart * conversion
+            yPos = y
+            width = int((hit.queryEnd - hit.queryStart)
+                        * conversion)
+            if rounded:
+                rx = int(boxHeight / 2)
+                ry = int(boxHeight / 2)
+            else:
+                rx = 0
+                ry = 0
+
+            rect = ET.Element(
+                'rect',
+                x=str(xPos),
+                y=str(yPos),
+                rx=str(rx),
+                ry=str(ry),
+                width=str(width),
+                height=str(boxHeight),
+                style=style,
+                )
+            doc.append(rect)
+
+            if hit.startshow:
+                xPos = int(leftMargin + hit.queryStart * conversion
+                           - int(len(str(hit.queryStart))
+                           * fontSize * 0.6))
+                yPos = int(y + boxHeight * 0.7)
+                startLabel = ET.Element('text', x=str(xPos),
+                        y=str(yPos),
+                        style='font-family:Sans-Serif;font-weight:bold;font-size:'
+                         + str(fontSize)
+                        + 'px;text-anchor:left;dominant-baseline:bottom'
+                        , fill='black')
+                startLabel.text = str(hit.queryStart)
+                doc.append(startLabel)
+
+            if hit.endshow:
+                xPos = int(leftMargin + hit.queryEnd * conversion
+                           + 5)
+                yPos = int(y + boxHeight * 0.7)
+                endLabel = ET.Element('text', x=str(xPos),
+                        y=str(yPos),
+                        style='font-family:Sans-Serif;font-weight:bold;font-size:'
+                         + str(fontSize)
+                        + 'px;text-anchor:left;dominant-baseline:bottom'
+                        , fill='black')
+                endLabel.text = str(hit.queryEnd)
+                doc.append(endLabel)
+
+            if hit.label:
+                name = hit.name
+                if len(name) * fontSize * 0.6 < (hit.queryEnd
+                        - hit.queryStart) * conversion:
+                    xPos = leftMargin + int((hit.queryStart
+                            + (hit.queryEnd - hit.queryStart)
+                            * 0.5) * conversion)
+                    align = 'middle'
                 else:
-                    color = 'blue'
-                if hit.border:
-                    border = ';stroke-width:1;stroke:black'
+                    xPos = int(leftMargin + hit.queryEnd
+                               * conversion + 10
+                               + len(str(hit.queryEnd)) * fontSize
+                               * 0.6)
+                    align = 'left'
+                yPos = int(y + boxHeight * 0.7)
+                textLabel = ET.Element('text', x=str(xPos),
+                        y=str(yPos), fill='black',
+                        style='font-family:Sans-Serif;font-size:'
+                        + str(fontSize) + 'px;text-anchor:' + align)
+
+                textLabel.text = name
+
+                if hit.labelLink:
+                    link = ET.Element('a')
+                    link.attrib['xlink:href'] = hit.labelLink
+                    link.append(textLabel)
+                    doc.append(link)
                 else:
-                    border = ''
-                if hit.gradient:
-                    style = 'fill:url(#' + 'gradient_' + hit.color \
-                        + ')' + border
-                else:
-                    style = 'fill:' + color + border
-                xPos = leftMargin + hit.queryStart * conversion
-                yPos = y
-                width = int((hit.queryEnd - hit.queryStart)
-                            * conversion)
-                if rounded:
-                    rx = int(boxHeight / 2)
-                    ry = int(boxHeight / 2)
-                else:
-                    rx = 0
-                    ry = 0
+                    doc.append(textLabel)
 
-                rect = ET.Element(
-                    'rect',
-                    x=str(xPos),
-                    y=str(yPos),
-                    rx=str(rx),
-                    ry=str(ry),
-                    width=str(width),
-                    height=str(boxHeight),
-                    style=style,
-                    )
-                doc.append(rect)
-
-                if hit.startshow:
-                    xPos = int(leftMargin + hit.queryStart * conversion
-                               - int(len(str(hit.queryStart))
-                               * fontSize * 0.6))
-                    yPos = int(y + boxHeight * 0.7)
-                    startLabel = ET.Element('text', x=str(xPos),
-                            y=str(yPos),
-                            style='font-family:Sans-Serif;font-weight:bold;font-size:'
-                             + str(fontSize)
-                            + 'px;text-anchor:left;dominant-baseline:bottom'
-                            , fill='black')
-                    startLabel.text = str(hit.queryStart)
-                    doc.append(startLabel)
-
-                if hit.endshow:
-                    xPos = int(leftMargin + hit.queryEnd * conversion
-                               + 5)
-                    yPos = int(y + boxHeight * 0.7)
-                    endLabel = ET.Element('text', x=str(xPos),
-                            y=str(yPos),
-                            style='font-family:Sans-Serif;font-weight:bold;font-size:'
-                             + str(fontSize)
-                            + 'px;text-anchor:left;dominant-baseline:bottom'
-                            , fill='black')
-                    endLabel.text = str(hit.queryEnd)
-                    doc.append(endLabel)
-
-                if hit.label:
-                    name = hit.name
-                    if len(name) * fontSize * 0.6 < (hit.queryEnd
-                            - hit.queryStart) * conversion:
-                        xPos = leftMargin + int((hit.queryStart
-                                + (hit.queryEnd - hit.queryStart)
-                                * 0.5) * conversion)
-                        align = 'middle'
-                    else:
-                        xPos = int(leftMargin + hit.queryEnd
-                                   * conversion + 10
-                                   + len(str(hit.queryEnd)) * fontSize
-                                   * 0.6)
-                        align = 'left'
-                    yPos = int(y + boxHeight * 0.7)
-                    textLabel = ET.Element('text', x=str(xPos),
-                            y=str(yPos), fill='black',
-                            style='font-family:Sans-Serif;font-size:'
-                            + str(fontSize) + 'px;text-anchor:' + align)
-
-                    textLabel.text = name
-
-                    if hit.labelLink:
-                        link = ET.Element('a')
-                        link.attrib['xlink:href'] = hit.labelLink
-                        link.append(textLabel)
-                        doc.append(link)
-                    else:
-                        doc.append(textLabel)
-
-                y += yDelta
+            y += yDelta
         return doc
 
     def querySequenceDraw(self):
         '''
-            Draw Single Sequence and Domain, Secondary Structure.
+            Draw Single Sequence and Domain and Secondary Structure.
         '''
 
         yStart = 30
@@ -491,7 +490,7 @@ class HHBlitsDrawer(object):
         yDelta = 70
         yDiff = 15
         conversionFactor = 0.7
-        name = self.hhblitResult.name
+        name = self.hhblitResult.file
         svgfilename = name + '.svg'
         length = len(self.hhblitResult.sequence)
         canvasHeight = int((length / float(columnWidth) + 1) * yDelta)
@@ -547,16 +546,93 @@ class HHBlitsDrawer(object):
         aminoacids.text = name
         doc.append(aminoacids)
 
-        self.saveSVG(svgfilename, doc)
-        return (svgfilename, ET.tostring(doc))
-   
+        for hit in self.hhblitResult.features['hhblits']:
+            if not hit.exclude:
+                # print hit.name, hit.queryStart, hit.queryEnd
+                domainBorder = ';stroke-width:1;stroke:black'
+                style = 'fill:' + hit.color + domainBorder
+                style = style + ';fill-opacity:0.5'
+                doc = self.drawDomainOnSequence(
+                    doc, hit.queryStart, hit.queryEnd,
+                    style, hit.name, leftMargin, 
+                    columnWidth, fontSize, yStart, yDelta)
 
+        self.saveSVG(svgfilename, doc)
+
+        return (ET.tostring(doc))
+   
+    def drawDomainOnSequence(
+        self, doc, start, end, style,
+        name, leftMargin, columnWidth, 
+        fontSize, yStart, yDelta ): 
+        '''
+        Draw Domain Rect 
+        Return 
+        '''
+        conversionFactor = 0.7
+        yPositions = []
+        startrow = start // columnWidth + 1
+        i = 0
+
+        while end > startrow * columnWidth:
+            xPos = int(leftMargin + (start % columnWidth - 1)
+                       * fontSize * conversionFactor)
+            width = int((columnWidth - start % columnWidth + 1)
+                        * fontSize * conversionFactor)
+            height = 20
+            yPos = yStart + yDelta * (startrow - 1) - height / 2
+
+            middlePosX = xPos + width // 2
+            middlePosY = yPos - height / 2
+            domain = ET.Element(
+                'rect',
+                x=str(xPos),
+                y=str(yPos),
+                width=str(width),
+                height=str(height),
+                style=style,
+                )
+            doc.append(domain)
+            start = (startrow + 1) * columnWidth + 1
+            startrow += 1
+            i += 1
+
+        xPos = int(leftMargin + (start % columnWidth - 1) * fontSize
+                   * conversionFactor)
+        width = int((end % columnWidth - start % columnWidth + 1)
+                    * fontSize * conversionFactor)
+        height = 20
+        yPos = yStart + yDelta * (startrow - 1) - height / 2
+
+        yPositions.append(yPos)
+        if i == 0:
+            middlePosX = xPos + width // 2
+            middlePosY = yPos - height / 2
+
+        domain = ET.Element(
+            'rect',
+            x=str(xPos),
+            y=str(yPos),
+            width=str(width),
+            height=str(height),
+            style=style,
+            )
+        doc.append(domain)
+
+        text = ET.Element('text', x=str(middlePosX),
+                          y=str(middlePosY), fill='black',
+                          style='font-family:Arial;font-size:'
+                          + str(fontSize)
+                          + 'px;text-anchor:left;dominant-baseline:middle'
+                          )
+        text.text = name
+        doc.append(text)
+        return doc
 
     def singleAlignDraw(self, hit):
         '''
             Draw Single Sequence and Domain, Secondary Structure.
         '''
-
         yStart = 30
         y = yStart
         leftMargin = 130
@@ -571,6 +647,7 @@ class HHBlitsDrawer(object):
 
         name = hit.name
         svgfilename = name + '.svg'
+       
         length = len(hit.querySequence)
         canvasHeight = int((length / float(columnWidth) + 1) * yDelta)
 
@@ -656,7 +733,7 @@ class HHBlitsDrawer(object):
         doc.append(aminoacids)
 
         self.saveSVG(svgfilename, doc)
-        return (ET.tostring(doc))
+        return (svgfilename,ET.tostring(doc))
 
     def sequenceDraw(
         self,
@@ -753,7 +830,6 @@ class HHBlitsDrawer(object):
         name,
         leftMargin,
         ):
-
         sequenceName = ET.Element('text', x=str(int(leftMargin * 0.7)),
                                   y=str(y), fill='black',
                                   style='font-family:Arial;font-size:'

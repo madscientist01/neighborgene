@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/pypy
 # -*- coding: utf-8 -*-
 #
 # HHblits (http://toolkit.tuebingen.mpg.de/hhblits) Wrapper and stand alone pipeline similar with HHpred/
@@ -35,11 +35,13 @@ import datetime
 import sys
 import argparse
 import jinja2
+import operator 
 import SimpleHTTPServer
 import SocketServer
 import webbrowser
 import re
 import glob
+import pdbtools
 
 class HHblits(AbstractSequenceObject):
 
@@ -103,6 +105,30 @@ class HHblits(AbstractSequenceObject):
             hit.color = color
             self.features['psipred'].append(hit)
 
+    def exclude(self):
+
+        #
+        # Exclude overlapped domain. If two domains are overlapped, the one have higher bitscore will be retained
+        #
+        hits = self.features['hhblits']
+
+        if len(hits) > 1:
+            for i in range(len(hits) - 1):
+                for j in range(i + 1, len(hits)):
+                    if not hits[i].exclude and not hits[j].exclude:
+                        if hits[i].queryEnd > hits[j].queryStart and hits[i].queryEnd < hits[j].queryEnd:
+                            if hits[i].score > hits[j].score:
+                                hits[j].exclude = True
+                            else:
+                                hits[i].exclude =True                  
+
+                        if hits[j].queryEnd > hits[i].queryStart and hits[j].queryEnd < hits[i].queryEnd:
+                            if hits[i].score > hits[j].score:
+                                hits[j].exclude = True
+                            else:
+                                hits[i].exclude = True
+
+
     def hitName(self, name):
         '''
         Extract pdb informations from hhblit hit
@@ -141,8 +167,23 @@ class HHblits(AbstractSequenceObject):
                     'resolution': resolution,
                     }
             else:
-                outname = name[:10]
-                extra = {}
+                matched = re.match('(\S{4})_(\S) (.*)\{(.*)\}', name)
+                if matched:
+                    outname = matched.group(1).upper()
+                    chain = matched.group(2)
+                    description = matched.group(3)
+                    specie = matched.group(4)
+                    extra = {
+                        'accession': outname,
+                        'description': description,
+                        'description2': "",
+                        'chain': "",
+                        'specie': specie,
+                        'resolution': "",
+                        }
+                else:
+                    outname = matched[:4]
+                    extra = {}
         return (outname, extra)
 
     def runLocal(self):
@@ -289,7 +330,7 @@ class HHblits(AbstractSequenceObject):
 
                 nameRegex = re.compile('>(.*)$')
                 paramRegex = \
-                    re.compile('^Probab=([0-9\.]+)\s+E-value=([0-9e\.\+\-]+)\s+Score=([0-9\.]+)\s+Aligned_cols=([0-9\.]+)\s+Identities=([0-9\.]+)%\s+Similarity=([0-9\.]+)\s+Sum_probs=([0-9\.]+)'
+                    re.compile('^Probab=([0-9\.]+)\s+E-value=([0-9e\.\+\-]+)\s+Score=([0-9\.]+)\s+Aligned_cols=([0-9\.]+)\s+Identities=([0-9\.]+)%\s+Similarity=([0-9\-\.]+)\s+Sum_probs=([0-9\.]+)'
                                )
                 queryRegex = \
                     re.compile("^Q \S+\s+(\d+)\s+([A-Z\-]+)\s+(\d+)")
@@ -312,6 +353,7 @@ class HHblits(AbstractSequenceObject):
                     dsspSequence = ''
 
                     for line in buffer:
+                      
                         namematch = nameRegex.match(line)
                         if namematch:
                             name = namematch.group(1)
@@ -418,6 +460,9 @@ class HHblits(AbstractSequenceObject):
 
                     self.features['hhblits'].append(hhblits)
 
+                self.exclude()
+
+
             if os.path.exists(self.outputAlignFile):
 
                 #
@@ -452,6 +497,22 @@ class HHblits(AbstractSequenceObject):
             return False
 
 
+def downloadPDB(hits, path="", probabilityCutOff=95):
+    
+    downloadlist = {}  
+    for hit in hits:
+        if hit.probability > probabilityCutOff:
+            accession = hit.extra['accession']
+            chain = hit.extra['chain']
+            start = hit.targetStart
+            end = hit.targetEnd
+            downloadlist[accession] = (chain,start,end)
+    fetch = PDBfetch(pdblist=downloadlist.keys(), path=path)
+    fetch.download()
+    return (downloadlist)
+
+
+
 def main(results):
     '''
     main worker method for the pipeline.
@@ -462,7 +523,7 @@ def main(results):
     pfamADBLocation = '/Users/suknamgoongold/hhsuite/db/pfamA_v26.0_06Dec11'
     if len(files)==0:
         files = glob.glob("*.fasta")
-
+    summaryResults = []
     for singleFile in files:
         if os.path.exists(singleFile):
             hhblits = HHblits(  # define location of HHSUITE DB. Based on the location of actual DB, these should be changed.
@@ -513,7 +574,7 @@ def main(results):
             (name,ext) = os.path.splitext(singleFile)
             outFileName = name+".html"
             time = datetime.datetime.fromtimestamp(os.path.getmtime(hhblits.hhrfile))
-            t = template.render(results= results, time = time, 
+            t = template.render(name = singleFile, results= results, time = time, 
                                 headers=headers, sequence = querySeq,
                                 hits=hhblits.features['hhblits'], hitmap=hitmap, 
                                 hhrfile = os.path.basename(hhblits.hhrfile), 
@@ -521,14 +582,53 @@ def main(results):
             f = open(hhblits.path + outFileName, 'w')
             f.write(t)
             f.close()
+
+            # summary report
+            hits = hhblits.features['hhblits']
+            if len(hits)>0:
+                besthit =  min(hits, key=operator.attrgetter('probability'))
+                name = besthit.name
+                description = besthit.description
+                probability = besthit.probability
+                color = besthit.color
+            else:
+                name = "NONE"
+                description = "NONE"
+                probability = 0
+                color = "grey"
+          
+            summaryRecord = {
+                'filename' : hhblits.file,
+                'outfile' : hhblits.path+outFileName,
+                'nohits' : len(hits),
+                'name' : name,
+                'descriptions' : description,
+                'probability' : probability,
+                'color':color
+            }
+            summaryResults.append(summaryRecord)
+
         else:
             "{0} is not exist. Skipped.".format(singleFile)
+
+    headers = [
+        'File name',
+        'No. of Hit',
+        'PDB',
+        'Description',
+        'Probability',
+        ]
+    template = jinja_environment.get_template('summarytable.html')
+    t = template.render(headers=headers, summaryResults = summaryResults)
+    f = open('summary.html','w')
+    f.write(t)
+    f.close()
 
     PORT=8000
     Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
     httpd = SocketServer.TCPServer(("", PORT), Handler)
     print "serving at port", PORT
-    webbrowser.open("http://localhost:8000/"+hhblits.path + outFileName)
+    webbrowser.open("http://localhost:8000/summary.html")
     httpd.serve_forever()
 
 
@@ -565,6 +665,8 @@ if __name__ == '__main__':
         )
     parser.add_argument('-p', '--path', dest='path', default='',
                         help='path')
+    parser.add_argument('-s', '--structure', dest='structure', default='',
+                        help='download structure')
     results = parser.parse_args()
     main(results)
     

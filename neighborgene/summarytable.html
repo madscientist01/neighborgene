@@ -3,7 +3,7 @@
 
 <html>
     <head>
-        <title>{{results.file}}</title>
+        <title>HHBLITS Report</title>
         <meta charset='utf-8'>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
@@ -32,30 +32,11 @@
                      ]                                    
                     });
                   var oTable = $('#listtable').dataTable();
-                oTable.fnSort( [ [5,'desc'], [4,'desc'] ] );
+                oTable.fnSort( [ [4,'desc'], [3,'desc'] ] );
                 $(function () {
                     $('#myTab a:last').tab('show');
                  })
-                 
-
-        });
-
-        $("#hitbutton").click(function() {
-            if ($('#Seq').hasClass('active'))
-                    $('#Seq').removeClass('active');
-            if ($('#Align').hasClass('active'))
-                    $('#Align').removeClass('active');         
-                $('#Hit').addClass('active');
-            return false;
-        });
-
-        $("#alignbutton").click(function() {
-            if ($('#Seq').hasClass('active'))
-                    $('#Seq').removeClass('active');
-            if ($('#Hit').hasClass('active'))
-                    $('#Hit').removeClass('active');         
-                $('#Align').addClass('active');
-            return false;
+ 
         });
 
         </script>
@@ -149,12 +130,10 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                   </a>
-                  <a class="brand" href="../summary.html">HHblits</a>
+                  <a class="brand" href="#hhblits">HHblits</a>
                   <div class="nav-collapse collapse">
                     <ul class="nav" id="main-nav">
                       <li class="active"><a href="#predictions">Predictions</a></li>
-                      <li><a href="#Hit" id="hitbutton">Hit Distributions</a></li>
-                      <li><a href="#Align" id="alignbutton">Alignmnet</a></li>
                     </ul>
                   </div><!--/.nav-collapse -->
                 </div>
@@ -162,13 +141,8 @@
             </div>
             <div class="hero-unit">
                 <a name="hhblits" id ="hhblits"></a>
-                <h2>HHblits search for {{name}}</h2>
-                <p>Database searched  <span class="label label-info">{{results.db}}</span>
-                   E-Value Cutoff <span class="label label-info">{{results.evalue}}</span>
-                   Iteration <span class="label label-info">{{results.iteration}}</span>
-                   Run Finished at <span class="label label-info">{{time}}</span>
-               </p>
-               <p>Download <a href="{{hhrfile}}">HHblits output file (hhr)    </a> <a href="{{alignment}}">Multiple Sequence Alignment File (fasta)    </a><p>
+                <h2>Summary of HHblits</h2>
+               
             </div>
         </div>    
         <div class=row>
@@ -185,102 +159,28 @@
                 </tr>
             </thead>
             <tbody>
-                {% for hit in hits %}
+                {% for summary in summaryResults %}
                 <tr>
                     <td>
-                        <a href="{{hit.labelLink}}">{{hit.name}}</a>
+                        <a href="{{summary.outfile}}">{{summary.filename}}</a>
                     </td>
                     <td>
-                        {{hit.resolution}}
+                        {{summary.nohits}}
                     </td>
                     <td>
-                        <a href="#{{hit.name}}">{{hit.description}};{{hit.description2}}</a>
+                        {{ labeling (summary.name, summary.color)}}</a>
                     </td>
                     <td>
-                        {{ hit.evalue }}
+                        {{labeling (summary.descriptions, summary.color)}}
                     </td>
                     <td>
-                        {{ hit.score}}
-                    </td>
-                    <td>
-                        {{hit.probability }}
-                    </td>
-                    <td>
-                        {{hit.alignedCols}}
-                    </td>
-                    <td>
-                        {{hit.identity}}
-                    </td>
+                        {{summary.probability}}
+                    </td>                
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         </div>
-        </div>
-
-        <div class=row>
-            <div class=span1>
-            </div>
-            <div class=span11>
-            <ul class="nav nav-tabs" id="myTab">
-                <li class="active" id="hittab"><a href="#Hit" data-toggle="tab">Hits</a></li>
-                <li id="sequencetab"><a href="#Seq" data-toggle="tab">Sequence</a></li>
-                <li id="aligntab"><a href="#Align" data-toggle="tab">Align</a></li>
-                
-            </ul>
-            </div>
-        </div>
-        <div class="tab-content">
-            <div class="tab-pane active" id ="Hit">
-                <div class=row>
-                  
-                    <div class=span1>
-                    </div>
-                    <div class=span11>
-                        {{hitmap}}
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane" id ="Seq">
-                <div class=row>
-                    <div class=span1>
-                    </div>
-                    <div class=span11>
-                        {{sequence}}
-                    </div>
-                </div>           
-            </div>
-            <div class="tab-pane" id ="Align">
-                <div>
-                {% for hit in hits %}
-                <div class=row>
-               
-                </div>
-                <div class=span3>
-                    <a name="{{hit.name}}" id="{{hit.name}}"></a>
-                    <div class="well well-small">
-                        <a href="{{hit.labelLink}}"><h3>{{hit.name}}</h3></a>
-                        <h5>{{hit.description}}</h5>
-                        <h5><em>{{hit.specie}}</em></h5>
-                        Probability
-                        {{ labeling (hit.probability, hit.color) }}
-                        E-value 
-                        {{ labeling (hit.evalue, hit.color) }}<br>
-                        Score   <span class="label">{{hit.score}}</span> Identity   <span class="label">{{hit.identity}}%</span><br>
-                        
-                    </div>
-
-                </div>
-                <div class=span2>
-                    <img src="http://www.rcsb.org/pdb/images/{{hit.name|lower}}_bio_r_500.jpg" width=150>
-                </div>
-                <div class=span7>
-                    {{hit.svg}}
-                </div>
-                {% endfor %}
-                </div>
-            </div>
         </div>
         
        
