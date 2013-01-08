@@ -583,27 +583,33 @@ def main(results):
             f.write(t)
             f.close()
 
-            # summary report
+            # Data for summary report
             hits = hhblits.features['hhblits']
             if len(hits)>0:
-                besthit =  min(hits, key=operator.attrgetter('probability'))
+                besthit =  max(hits, key=operator.attrgetter('probability'))
                 name = besthit.name
                 description = besthit.description
                 probability = besthit.probability
+                aligned = besthit.alignedCols
+                identity = besthit.identity
                 color = besthit.color
             else:
                 name = "NONE"
                 description = "NONE"
                 probability = 0
+                aligned = 0
+                identity = 0
                 color = "grey"
-          
+            descriptionFormat = '<a href="{0}#{1}">{2}</a>'.format(hhblits.path+outFileName, name, description)
             summaryRecord = {
                 'filename' : hhblits.file,
                 'outfile' : hhblits.path+outFileName,
                 'nohits' : len(hits),
                 'name' : name,
-                'descriptions' : description,
+                'descriptions' : descriptionFormat,
                 'probability' : probability,
+                'aligned': aligned,
+                'identity': identity,
                 'color':color
             }
             summaryResults.append(summaryRecord)
@@ -614,9 +620,11 @@ def main(results):
     headers = [
         'File name',
         'No. of Hit',
-        'PDB',
-        'Description',
-        'Probability',
+        'The Best Hit PDB',
+        'Description of the Best Hit',
+        'Probability (%)',
+        'Aligned AA',
+        'Identity (%)'
         ]
     template = jinja_environment.get_template('summarytable.html')
     t = template.render(headers=headers, summaryResults = summaryResults)

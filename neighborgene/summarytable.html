@@ -142,7 +142,13 @@
             <div class="hero-unit">
                 <a name="hhblits" id ="hhblits"></a>
                 <h2>Summary of HHblits</h2>
-               
+                <h3>Confidence of Predictions</h3>
+                {{labeling("100-95% (Confident)", "crimson")}}
+                {{labeling("95-80% (Certain)", "orange")}}
+                {{labeling("70-50% (Possible)", "green")}}
+                {{labeling("50-20% (Doubt)", "violet")}}
+                {{labeling("less than 20% (Ignore)", "grey")}}
+                
             </div>
         </div>    
         <div class=row>
@@ -168,14 +174,22 @@
                         {{summary.nohits}}
                     </td>
                     <td>
-                        {{ labeling (summary.name, summary.color)}}</a>
+                        {{labeling (summary.name, summary.color)}}</a>
                     </td>
                     <td>
-                        {{labeling (summary.descriptions, summary.color)}}
+                        {{summary.descriptions}}
                     </td>
                     <td>
                         {{summary.probability}}
-                    </td>                
+                    </td>
+                    <td>
+                        {{summary.aligned}}
+                    </td>
+                    <td>
+                        {{summary.identity}}
+                    </td>    
+
+
                 </tr>
                 {% endfor %}
             </tbody>
