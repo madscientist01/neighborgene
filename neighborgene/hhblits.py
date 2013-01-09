@@ -1,4 +1,4 @@
-#!/usr/local/bin/pypy
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # HHblits (http://toolkit.tuebingen.mpg.de/hhblits) Wrapper and stand alone pipeline similar with HHpred/
@@ -41,7 +41,8 @@ import SocketServer
 import webbrowser
 import re
 import glob
-import pdbtools
+from pdbtools.fetchPDB import PDBFetch
+from pdbtools.pdbextract import PDBParse, PDBExtract
 
 class HHblits(AbstractSequenceObject):
 
@@ -499,18 +500,29 @@ class HHblits(AbstractSequenceObject):
 
 def downloadPDB(hits, path="", probabilityCutOff=95):
     
-    downloadlist = {}  
+    downloadlist = []
     for hit in hits:
-        if hit.probability > probabilityCutOff:
-            accession = hit.extra['accession']
-            chain = hit.extra['chain']
-            start = hit.targetStart
-            end = hit.targetEnd
-            downloadlist[accession] = (chain,start,end)
-    fetch = PDBfetch(pdblist=downloadlist.keys(), path=path)
-    fetch.download()
-    return (downloadlist)
+        if hit[4] > probabilityCutOff:
+            accession = hit[0]
+            start = hit[1]
+            end = hit[2]
+            chain = hit[3]        
+            downloadlist.append((accession,chain,start,end))
 
+    fetch = PDBFetch(pdblist=[d[0] for d in downloadlist], path=path, verbose=True, overwrite=True)
+    fetch.download()
+
+    for (pdb, chain,start,end) in downloadlist:
+        
+        pdbFileName = path+'/'+pdb+'.pdb'
+        [header, chains] = PDBParse(pdbFileName, None, None)
+
+        extractRegion = '{0}:{1}_{2}'.format(chain, start, end)
+        print chain,start,end, extractRegion
+        pdbExtract = PDBExtract(extractregion=extractRegion,
+                                header=True)
+        pdbExtract.extractRegions(header, chains, pdbFileName)
+    return (downloadlist)
 
 
 def main(results):
@@ -552,7 +564,6 @@ def main(results):
             #
             # Table Generation using jinja2
             #
-
             jinja_environment = \
                 jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
             template = jinja_environment.get_template('table.html')
@@ -614,6 +625,9 @@ def main(results):
             }
             summaryResults.append(summaryRecord)
 
+            if hhblits.db == "pdb" and results.structure:
+                pdblist = [(hit.name,hit.targetStart, hit.targetEnd, hit.chain, hit.probability) for hit in hhblits.features['hhblits']]
+                downloadPDB(pdblist, hhblits.path+"PDB")
         else:
             "{0} is not exist. Skipped.".format(singleFile)
 
@@ -673,7 +687,7 @@ if __name__ == '__main__':
         )
     parser.add_argument('-p', '--path', dest='path', default='',
                         help='path')
-    parser.add_argument('-s', '--structure', dest='structure', default='',
+    parser.add_argument('-s', '--structure', dest='structure', default=False, action='store_true',
                         help='download structure')
     results = parser.parse_args()
     main(results)
