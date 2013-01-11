@@ -502,26 +502,23 @@ def downloadPDB(hits, path="", probabilityCutOff=95):
     
     downloadlist = []
     for hit in hits:
-        if hit[4] > probabilityCutOff:
+        if hit[3] > probabilityCutOff:
             accession = hit[0]
-            start = hit[1]
-            end = hit[2]
-            chain = hit[3]        
-            downloadlist.append((accession,chain,start,end))
+            targetSequence = hit[1]
+            chain = hit[2]        
+            downloadlist.append((accession,chain,targetSequence))
 
     fetch = PDBFetch(pdblist=[d[0] for d in downloadlist], path=path, verbose=True, overwrite=True)
     fetch.download()
 
-    for (pdb, chain,start,end) in downloadlist:
+    for (pdb, chain, targetSequence) in downloadlist:
         
         pdbFileName = path+'/'+pdb+'.pdb'
         [header, chains] = PDBParse(pdbFileName, None, None)
 
-        extractRegion = '{0}:{1}_{2}'.format(chain, start, end)
-        print chain,start,end, extractRegion
-        pdbExtract = PDBExtract(extractregion=extractRegion,
-                                header=True)
-        pdbExtract.extractRegions(header, chains, pdbFileName)
+        pdbExtract = PDBExtract(header=True,overwrite=True)
+        pdbExtract.extractBasedOnStructureSeq(targetSequence, header, chains, chain, pdbFileName)
+        
     return (downloadlist)
 
 
@@ -612,6 +609,7 @@ def main(results):
                 identity = 0
                 color = "grey"
             descriptionFormat = '<a href="{0}#{1}">{2}</a>'.format(hhblits.path+outFileName, name, description)
+            
             summaryRecord = {
                 'filename' : hhblits.file,
                 'outfile' : hhblits.path+outFileName,
@@ -626,7 +624,7 @@ def main(results):
             summaryResults.append(summaryRecord)
 
             if hhblits.db == "pdb" and results.structure:
-                pdblist = [(hit.name,hit.targetStart, hit.targetEnd, hit.chain, hit.probability) for hit in hhblits.features['hhblits']]
+                pdblist = [(hit.name, hit.targetSequence.replace('-',''), hit.chain, hit.probability) for hit in hhblits.features['hhblits']]
                 downloadPDB(pdblist, hhblits.path+"PDB")
         else:
             "{0} is not exist. Skipped.".format(singleFile)

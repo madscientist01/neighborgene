@@ -10,6 +10,7 @@ HMMER3 and HHblits based on Microbial genome context viewer & annotation helpers
 - [HH-Suites](ftp://toolkit.genzentrum.lmu.de/pub/HH-suite/)
 - [jinja2](http://jinja.pocoo.org/)
 - [pymysql](https://github.com/petehunt/PyMySQL)
+- [pdbtools](https://https://github.com/madscientist01/pdbtools)
 
 ## Installation
 
